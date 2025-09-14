@@ -1,0 +1,45 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go build outputs
+*.o
+*.a
+*.wasm
+
+# Go workspace
+go.work
+go.work.sum
+
+# Test binaries
+*.test
+
+# Dependency directories (vendor/)
+vendor/
+
+# Go coverage output
+*.cover
+*.coverprofile
+coverage.out
+
+# Logs
+*.log
+
+# IDE/editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+.env
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go modules cache (don’t ignore go.sum)
+# go.sum is important for reproducible builds
