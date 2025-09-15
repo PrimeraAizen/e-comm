@@ -7,11 +7,17 @@ import (
 	"e-comm/internal/repository"
 	"e-comm/internal/server"
 	"e-comm/internal/service"
+	postgres "e-comm/pkg/adapter"
 	"fmt"
 )
 
 func StartWebServer(ctx context.Context, cfg *config.Config) error {
-	repos := repository.NewRepositories()
+	pg, err := postgres.New(ctx, &cfg.PG)
+	if err != nil {
+		return fmt.Errorf("could not init postgres connection: %w", err)
+	}
+
+	repos := repository.NewRepositories(pg)
 	services := service.NewServices(service.Deps{
 		Repos:  repos,
 		Config: cfg,

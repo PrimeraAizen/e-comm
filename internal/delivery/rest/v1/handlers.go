@@ -18,8 +18,5 @@ func NewHandler(services *service.Service) *Handler {
 
 func (h *Handler) Init(api *gin.RouterGroup) {
 	v1 := api.Group("/v1")
-	h.initRoutes(v1)
-}
-
-func (h *Handler) initRoutes(api *gin.RouterGroup) {
+	h.InitExampleRoutes(v1)
 }

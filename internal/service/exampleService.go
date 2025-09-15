@@ -10,7 +10,7 @@ type ExampleServiceDeps struct {
 	repo repository.Example
 }
 
-func NewExampleService(repo *repository.ExampleRepository) *ExampleServiceDeps {
+func NewExampleService(repo repository.Example) *ExampleServiceDeps {
 	return &ExampleServiceDeps{
 		repo: repo,
 	}

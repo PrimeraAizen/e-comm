@@ -5,7 +5,9 @@ import (
 	"e-comm/internal/repository"
 )
 
-type Service struct{}
+type Service struct {
+	ExampleService Example
+}
 
 type Deps struct {
 	Repos  *repository.Repository
@@ -13,5 +15,7 @@ type Deps struct {
 }
 
 func NewServices(deps Deps) *Service {
-	return &Service{}
+	return &Service{
+		ExampleService: NewExampleService(deps.Repos.Example),
+	}
 }
