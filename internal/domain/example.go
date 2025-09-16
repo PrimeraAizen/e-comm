@@ -5,7 +5,7 @@ import (
 )
 
 type Example struct {
-	ExampleField string `json:"example_field"`
+	ExampleField string `json:"example_field" validate:"required"`
 }
 
 func (e *Example) Validate() error {

@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"path"
 
 	"e-comm/config"
 
@@ -37,9 +36,9 @@ func New(ctx context.Context, cfg *config.PG) (*Postgres, error) {
 		return nil, fmt.Errorf("failed to ping Postgres: %w", err)
 	}
 
-	if err := RunMigrations(poolConfig.ConnString(), path.Join("migrations", "postgres"), "cdp.goose_db_version"); err != nil {
-		return nil, err
-	}
+	// if err := RunMigrations(poolConfig.ConnString(), path.Join("migrations", "postgres"), "cdp.goose_db_version"); err != nil {
+	// 	return nil, err
+	// }
 
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
