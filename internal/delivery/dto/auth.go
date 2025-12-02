@@ -30,8 +30,8 @@ func (r *RegisterRequest) ToDomain() (*domain.User, error) {
 	}
 
 	return &domain.User{
-		PasswordHash: string(hashedPassword),
-		Email:        r.Email,
+		Password: string(hashedPassword),
+		Email:    r.Email,
 	}, nil
 }
 
@@ -46,6 +46,13 @@ func (l *LoginRequest) Validate() error {
 		return domain.ErrValidation
 	}
 	return nil
+}
+
+func (l *LoginRequest) ToDomain() *domain.User {
+	return &domain.User{
+		Email:    l.Email,
+		Password: l.Password,
+	}
 }
 
 type AuthResponse struct {

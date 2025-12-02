@@ -116,7 +116,7 @@ func (r *userRepository) Update(ctx context.Context, user *domain.User) error {
 	update := bson.M{
 		"$set": bson.M{
 			"email":         user.Email,
-			"password_hash": user.PasswordHash,
+			"password_hash": user.Password,
 			"status":        user.Status,
 			"updated_at":    user.UpdatedAt,
 		},

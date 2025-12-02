@@ -13,9 +13,9 @@ import (
 func (h *Handler) InitAuthRoutes(api *gin.RouterGroup) {
 	auth := api.Group("/auth")
 	{
-		auth.POST("/register", h.Register)
-		auth.POST("/login", h.Login)
-		auth.POST("/refresh", h.RefreshToken)
+		auth.POST("/register", h.register)
+		auth.POST("/login", h.login)
+		auth.POST("/refresh", h.refreshToken)
 	}
 }
 
@@ -31,7 +31,7 @@ func (h *Handler) InitAuthRoutes(api *gin.RouterGroup) {
 // @Failure 409 {object} dto.ErrorResponse "User with this email already exists"
 // @Failure 500 {object} dto.ErrorResponse "Internal server error"
 // @Router /auth/register [post]
-func (h *Handler) Register(c *gin.Context) {
+func (h *Handler) register(c *gin.Context) {
 	var req dto.RegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -86,7 +86,7 @@ func (h *Handler) Register(c *gin.Context) {
 // @Failure 403 {object} dto.ErrorResponse "User account is inactive"
 // @Failure 500 {object} dto.ErrorResponse "Internal server error"
 // @Router /auth/login [post]
-func (h *Handler) Login(c *gin.Context) {
+func (h *Handler) login(c *gin.Context) {
 	var req dto.LoginRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -103,13 +103,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	// Convert DTO to domain
-	domainReq := &domain.LoginRequest{
-		Email:    req.Email,
-		Password: req.Password,
-	}
-
-	resp, err := h.services.AuthService.Login(c.Request.Context(), domainReq)
+	resp, err := h.services.AuthService.Login(c.Request.Context(), req.ToDomain())
 	if err != nil {
 		if err == domain.ErrInvalidCredentials {
 			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
@@ -148,7 +142,7 @@ func (h *Handler) Login(c *gin.Context) {
 // @Failure 403 {object} dto.ErrorResponse "User account is inactive"
 // @Failure 500 {object} dto.ErrorResponse "Internal server error"
 // @Router /auth/refresh [post]
-func (h *Handler) RefreshToken(c *gin.Context) {
+func (h *Handler) refreshToken(c *gin.Context) {
 	var req dto.RefreshTokenRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {

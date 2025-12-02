@@ -1,0 +1,211 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/PrimeraAizen/e-comm/config"
+	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
+)
+
+func main() {
+	ctx := context.Background()
+
+	// Load configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatal("Failed to load config:", err)
+	}
+
+	// Build MongoDB URI
+	mongoURI := cfg.Mongo.URI
+	if mongoURI == "" {
+		if cfg.Mongo.Username != "" && cfg.Mongo.Password != "" {
+			mongoURI = fmt.Sprintf("mongodb://%s:%s@%s:%s",
+				cfg.Mongo.Username, cfg.Mongo.Password, cfg.Mongo.Host, cfg.Mongo.Port)
+		} else {
+			mongoURI = fmt.Sprintf("mongodb://%s:%s", cfg.Mongo.Host, cfg.Mongo.Port)
+		}
+	}
+
+	fmt.Println("Connecting to MongoDB...")
+	fmt.Println("URI:", mongoURI)
+	fmt.Println("Database:", cfg.Mongo.Database)
+
+	// Connect to MongoDB
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		log.Fatal("Failed to connect:", err)
+	}
+	defer client.Disconnect(ctx)
+
+	// Ping to verify connection
+	if err := client.Ping(ctx, nil); err != nil {
+		log.Fatal("Failed to ping MongoDB:", err)
+	}
+
+	db := client.Database(cfg.Mongo.Database)
+
+	// Clear existing data
+	fmt.Println("Clearing existing data...")
+	collections := []string{"users", "roles", "user_roles", "categories", "products",
+		"orders", "order_items", "user_product_views", "user_product_likes", "profiles"}
+	for _, coll := range collections {
+		db.Collection(coll).Drop(ctx)
+	}
+
+	fmt.Println("Seeding data...")
+
+	// Seed Roles
+	fmt.Println("Creating roles...")
+	rolesCollection := db.Collection("roles")
+	roles := []interface{}{
+		bson.M{"_id": "00000000-0000-0000-0000-000000000001", "name": "admin", "description": "System administrator", "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": "00000000-0000-0000-0000-000000000002", "name": "user", "description": "Regular user", "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": "00000000-0000-0000-0000-000000000003", "name": "moderator", "description": "Content moderator", "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": "00000000-0000-0000-0000-000000000004", "name": "student", "description": "Student user", "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": "00000000-0000-0000-0000-000000000005", "name": "teacher", "description": "Teacher user", "created_at": time.Now(), "updated_at": time.Now()},
+	}
+	_, err = rolesCollection.InsertMany(ctx, roles)
+	if err != nil {
+		log.Fatal("Failed to insert roles:", err)
+	}
+
+	// Seed Users
+	fmt.Println("Creating users...")
+	usersCollection := db.Collection("users")
+
+	// Generate password hash for "password123"
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	passwordHash := string(hash)
+
+	users := []interface{}{
+		bson.M{
+			"_id":           uuid.MustParse("10000000-0000-0000-0000-000000000001"),
+			"email":         "admin@example.com",
+			"password_hash": passwordHash,
+			"status":        "active",
+			"created_at":    time.Now(),
+			"updated_at":    time.Now(),
+		},
+		bson.M{
+			"_id":           uuid.MustParse("10000000-0000-0000-0000-000000000002"),
+			"email":         "moderator@example.com",
+			"password_hash": passwordHash,
+			"status":        "active",
+			"created_at":    time.Now(),
+			"updated_at":    time.Now(),
+		},
+		bson.M{
+			"_id":           uuid.MustParse("10000000-0000-0000-0000-000000000003"),
+			"email":         "user1@example.com",
+			"password_hash": passwordHash,
+			"status":        "active",
+			"created_at":    time.Now(),
+			"updated_at":    time.Now(),
+		},
+		bson.M{
+			"_id":           uuid.MustParse("10000000-0000-0000-0000-000000000004"),
+			"email":         "user2@example.com",
+			"password_hash": passwordHash,
+			"status":        "active",
+			"created_at":    time.Now(),
+			"updated_at":    time.Now(),
+		},
+		bson.M{
+			"_id":           uuid.MustParse("10000000-0000-0000-0000-000000000005"),
+			"email":         "student@example.com",
+			"password_hash": passwordHash,
+			"status":        "active",
+			"created_at":    time.Now(),
+			"updated_at":    time.Now(),
+		},
+		bson.M{
+			"_id":           uuid.MustParse("10000000-0000-0000-0000-000000000006"),
+			"email":         "teacher@example.com",
+			"password_hash": passwordHash,
+			"status":        "active",
+			"created_at":    time.Now(),
+			"updated_at":    time.Now(),
+		},
+	}
+	_, err = usersCollection.InsertMany(ctx, users)
+	if err != nil {
+		log.Fatal("Failed to insert users:", err)
+	}
+
+	// Seed User Roles
+	fmt.Println("Assigning roles to users...")
+	userRolesCollection := db.Collection("user_roles")
+	userRoles := []interface{}{
+		bson.M{"user_id": uuid.MustParse("10000000-0000-0000-0000-000000000001"), "role_id": uuid.MustParse("00000000-0000-0000-0000-000000000001")}, // admin
+		bson.M{"user_id": uuid.MustParse("10000000-0000-0000-0000-000000000002"), "role_id": uuid.MustParse("00000000-0000-0000-0000-000000000003")}, // moderator
+		bson.M{"user_id": uuid.MustParse("10000000-0000-0000-0000-000000000003"), "role_id": uuid.MustParse("00000000-0000-0000-0000-000000000002")}, // user
+		bson.M{"user_id": uuid.MustParse("10000000-0000-0000-0000-000000000004"), "role_id": uuid.MustParse("00000000-0000-0000-0000-000000000002")}, // user
+		bson.M{"user_id": uuid.MustParse("10000000-0000-0000-0000-000000000005"), "role_id": uuid.MustParse("00000000-0000-0000-0000-000000000004")}, // student
+		bson.M{"user_id": uuid.MustParse("10000000-0000-0000-0000-000000000006"), "role_id": uuid.MustParse("00000000-0000-0000-0000-000000000005")}, // teacher
+	}
+	_, err = userRolesCollection.InsertMany(ctx, userRoles)
+	if err != nil {
+		log.Fatal("Failed to insert user roles:", err)
+	}
+
+	// Seed Categories
+	fmt.Println("Creating categories...")
+	categoriesCollection := db.Collection("categories")
+	categories := []interface{}{
+		bson.M{"_id": uuid.MustParse("20000000-0000-0000-0000-000000000001"), "name": "Electronics", "description": "Electronic devices and accessories", "parent_id": nil, "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": uuid.MustParse("20000000-0000-0000-0000-000000000002"), "name": "Smartphones", "description": "Mobile phones", "parent_id": uuid.MustParse("20000000-0000-0000-0000-000000000001"), "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": uuid.MustParse("20000000-0000-0000-0000-000000000003"), "name": "Tablets", "description": "Tablet devices", "parent_id": uuid.MustParse("20000000-0000-0000-0000-000000000001"), "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": uuid.MustParse("20000000-0000-0000-0000-000000000004"), "name": "Laptops", "description": "Notebook computers", "parent_id": uuid.MustParse("20000000-0000-0000-0000-000000000001"), "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": uuid.MustParse("20000000-0000-0000-0000-000000000005"), "name": "Accessories", "description": "Tech accessories", "parent_id": uuid.MustParse("20000000-0000-0000-0000-000000000001"), "created_at": time.Now(), "updated_at": time.Now()},
+	}
+	_, err = categoriesCollection.InsertMany(ctx, categories)
+	if err != nil {
+		log.Fatal("Failed to insert categories:", err)
+	}
+
+	// Seed Products
+	fmt.Println("Creating products...")
+	productsCollection := db.Collection("products")
+	categorySmartphones := uuid.MustParse("20000000-0000-0000-0000-000000000002")
+	categoryTablets := uuid.MustParse("20000000-0000-0000-0000-000000000003")
+	categoryLaptops := uuid.MustParse("20000000-0000-0000-0000-000000000004")
+	categoryAccessories := uuid.MustParse("20000000-0000-0000-0000-000000000005")
+
+	products := []interface{}{
+		// Smartphones
+		bson.M{"_id": uuid.MustParse("30000000-0000-0000-0000-000000000001"), "name": "iPhone 15 Pro", "description": "Latest Apple flagship", "category_id": categorySmartphones, "price": 999.99, "stock": 100, "image_url": "https://via.placeholder.com/300x300?text=iPhone+15+Pro", "is_active": true, "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": uuid.MustParse("30000000-0000-0000-0000-000000000002"), "name": "Samsung Galaxy S24", "description": "Samsung flagship phone", "category_id": categorySmartphones, "price": 899.99, "stock": 80, "image_url": "https://via.placeholder.com/300x300?text=Galaxy+S24", "is_active": true, "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": uuid.MustParse("30000000-0000-0000-0000-000000000003"), "name": "Google Pixel 8", "description": "Google's latest smartphone", "category_id": categorySmartphones, "price": 699.99, "stock": 60, "image_url": "https://via.placeholder.com/300x300?text=Pixel+8", "is_active": true, "created_at": time.Now(), "updated_at": time.Now()},
+
+		// Tablets
+		bson.M{"_id": uuid.MustParse("30000000-0000-0000-0000-000000000004"), "name": "iPad Pro 12.9", "description": "Apple's premium tablet", "category_id": categoryTablets, "price": 1099.99, "stock": 50, "image_url": "https://via.placeholder.com/300x300?text=iPad+Pro", "is_active": true, "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": uuid.MustParse("30000000-0000-0000-0000-000000000005"), "name": "Samsung Galaxy Tab S9", "description": "Samsung premium tablet", "category_id": categoryTablets, "price": 849.99, "stock": 45, "image_url": "https://via.placeholder.com/300x300?text=Galaxy+Tab", "is_active": true, "created_at": time.Now(), "updated_at": time.Now()},
+
+		// Laptops
+		bson.M{"_id": uuid.MustParse("30000000-0000-0000-0000-000000000006"), "name": "MacBook Air M3", "description": "Apple M3, 8GB RAM, 256GB SSD", "category_id": categoryLaptops, "price": 1199.99, "stock": 30, "image_url": "https://via.placeholder.com/300x300?text=MacBook+Air", "is_active": true, "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": uuid.MustParse("30000000-0000-0000-0000-000000000007"), "name": "MacBook Pro 16", "description": "Apple M3 Pro, 18GB RAM, 512GB SSD", "category_id": categoryLaptops, "price": 2499.99, "stock": 40, "image_url": "https://via.placeholder.com/300x300?text=MacBook+Pro", "is_active": true, "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": uuid.MustParse("30000000-0000-0000-0000-000000000008"), "name": "Dell XPS 15", "description": "Intel i7, 16GB RAM, 512GB SSD", "category_id": categoryLaptops, "price": 1799.99, "stock": 60, "image_url": "https://via.placeholder.com/300x300?text=Dell+XPS+15", "is_active": true, "created_at": time.Now(), "updated_at": time.Now()},
+
+		// Accessories
+		bson.M{"_id": uuid.MustParse("30000000-0000-0000-0000-000000000009"), "name": "AirPods Pro", "description": "Apple wireless earbuds with ANC", "category_id": categoryAccessories, "price": 249.99, "stock": 150, "image_url": "https://via.placeholder.com/300x300?text=AirPods", "is_active": true, "created_at": time.Now(), "updated_at": time.Now()},
+		bson.M{"_id": uuid.MustParse("30000000-0000-0000-0000-000000000010"), "name": "USB-C Hub", "description": "7-in-1 USB-C adapter", "category_id": categoryAccessories, "price": 49.99, "stock": 200, "image_url": "https://via.placeholder.com/300x300?text=USB-C+Hub", "is_active": true, "created_at": time.Now(), "updated_at": time.Now()},
+	}
+	_, err = productsCollection.InsertMany(ctx, products)
+	if err != nil {
+		log.Fatal("Failed to insert products:", err)
+	}
+
+	fmt.Println("✅ Database seeded successfully!")
+	fmt.Println("\nDefault credentials:")
+	fmt.Println("  Admin:     admin@example.com / password123")
+	fmt.Println("  Moderator: moderator@example.com / password123")
+	fmt.Println("  User:      user1@example.com / password123")
+}

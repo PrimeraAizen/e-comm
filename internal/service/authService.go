@@ -16,7 +16,7 @@ import (
 
 type AuthService interface {
 	Register(ctx context.Context, req *domain.User) (*domain.Token, error)
-	Login(ctx context.Context, req *domain.LoginRequest) (*domain.Token, error)
+	Login(ctx context.Context, req *domain.User) (*domain.Token, error)
 	ValidateToken(tokenString string) (*domain.TokenClaims, error)
 	RefreshToken(ctx context.Context, refreshToken string) (*domain.Token, error)
 }
@@ -24,7 +24,6 @@ type AuthService interface {
 type authService struct {
 	userRepo             repository.UserRepository
 	jwtSecret            string
-	config               config.Config
 	accessTokenDuration  time.Duration
 	refreshTokenDuration time.Duration
 }
@@ -63,12 +62,13 @@ func (s *authService) Register(ctx context.Context, user *domain.User) (*domain.
 	}
 
 	// Generate tokens
-	return s.generateAuthResponse(user)
+	return s.generateAuthTokens(user)
 }
 
-func (s *authService) Login(ctx context.Context, req *domain.LoginRequest) (*domain.Token, error) {
+func (s *authService) Login(ctx context.Context, user *domain.User) (*domain.Token, error) {
 	// Get user by email
-	user, err := s.userRepo.GetByEmail(ctx, req.Email)
+	dbUser, err := s.userRepo.GetByEmail(ctx, user.Email)
+	fmt.Println("DB user:", dbUser)
 	if err != nil {
 		if err == domain.ErrNotFound {
 			return nil, domain.ErrInvalidCredentials
@@ -77,23 +77,23 @@ func (s *authService) Login(ctx context.Context, req *domain.LoginRequest) (*dom
 	}
 
 	// Check password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(user.Password)); err != nil {
 		return nil, domain.ErrInvalidCredentials
 	}
 
 	// Check user status
-	if user.Status != "active" {
+	if dbUser.Status != "active" {
 		return nil, domain.ErrUserInactive
 	}
 
 	// Update last login
-	if err := s.userRepo.UpdateLastLogin(ctx, user.ID); err != nil {
+	if err := s.userRepo.UpdateLastLogin(ctx, dbUser.ID); err != nil {
 		// Log error but don't fail the login
 		fmt.Printf("failed to update last login: %v\n", err)
 	}
 
 	// Generate tokens
-	return s.generateAuthResponse(user)
+	return s.generateAuthTokens(dbUser)
 }
 
 func (s *authService) ValidateToken(tokenString string) (*domain.TokenClaims, error) {
@@ -160,10 +160,10 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*d
 	}
 
 	// Generate new tokens
-	return s.generateAuthResponse(user)
+	return s.generateAuthTokens(user)
 }
 
-func (s *authService) generateAuthResponse(user *domain.User) (*domain.Token, error) {
+func (s *authService) generateAuthTokens(user *domain.User) (*domain.Token, error) {
 	// Generate access token
 	accessToken, err := s.generateToken(user, s.accessTokenDuration)
 	if err != nil {
@@ -177,7 +177,7 @@ func (s *authService) generateAuthResponse(user *domain.User) (*domain.Token, er
 	}
 
 	// Remove password hash from response
-	user.PasswordHash = ""
+	user.Password = ""
 
 	return &domain.Token{
 		AccessToken:  accessToken,

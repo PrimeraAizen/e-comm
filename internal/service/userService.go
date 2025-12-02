@@ -113,7 +113,7 @@ func (s *userService) ChangePassword(ctx context.Context, userID int, currentPas
 	}
 
 	// Verify current password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(currentPassword)); err != nil {
 		return fmt.Errorf("invalid current password")
 	}
 
@@ -124,7 +124,7 @@ func (s *userService) ChangePassword(ctx context.Context, userID int, currentPas
 	}
 
 	// Update password
-	user.PasswordHash = string(hashedPassword)
+	user.Password = string(hashedPassword)
 	user.UpdatedAt = time.Now()
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
