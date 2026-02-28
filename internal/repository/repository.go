@@ -1,23 +1,21 @@
 package repository
 
-import mongodb "github.com/PrimeraAizen/e-comm/pkg/adapter/mongodb"
+import (
+	postgres "github.com/PrimeraAizen/e-comm/pkg/adapter"
+)
 
 type Repository struct {
-	Example     Example
-	Health      Health
-	User        UserRepository
-	Profile     ProfileRepository
-	Product     ProductRepository
-	Interaction InteractionRepository
+	User UserRepository
+	// Profile     ProfileRepository
+	// Product     ProductRepository
+	// Interaction InteractionRepository
 }
 
-func NewRepositories(db *mongodb.MongoDB) *Repository {
+func NewRepositories(db *postgres.Postgres) *Repository {
 	return &Repository{
-		Example:     NewExampleRepository(db),
-		Health:      NewHealthRepository(db),
-		User:        NewUserRepository(db),
-		Profile:     NewProfileRepository(db),
-		Product:     NewProductRepository(db),
-		Interaction: NewInteractionRepository(db),
+		User: NewUserRepository(db),
+		// Profile:     NewProfileRepository(db),
+		// Product:     NewProductRepository(db),
+		// Interaction: NewInteractionRepository(db),
 	}
 }

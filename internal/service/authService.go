@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -68,7 +67,6 @@ func (s *authService) Register(ctx context.Context, user *domain.User) (*domain.
 func (s *authService) Login(ctx context.Context, user *domain.User) (*domain.Token, error) {
 	// Get user by email
 	dbUser, err := s.userRepo.GetByEmail(ctx, user.Email)
-	fmt.Println("DB user:", dbUser)
 	if err != nil {
 		if err == domain.ErrNotFound {
 			return nil, domain.ErrInvalidCredentials
@@ -79,11 +77,6 @@ func (s *authService) Login(ctx context.Context, user *domain.User) (*domain.Tok
 	// Check password
 	if err := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(user.Password)); err != nil {
 		return nil, domain.ErrInvalidCredentials
-	}
-
-	// Check user status
-	if dbUser.Status != "active" {
-		return nil, domain.ErrUserInactive
 	}
 
 	// Update last login
@@ -140,23 +133,12 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*d
 		return nil, err
 	}
 
-	// Get user
-	userID, err := strconv.Atoi(claims.UserID)
-	if err != nil {
-		return nil, domain.ErrInvalidToken
-	}
-
-	user, err := s.userRepo.GetByID(ctx, userID)
+	user, err := s.userRepo.GetByID(ctx, claims.UserID)
 	if err != nil {
 		if err == domain.ErrNotFound {
 			return nil, domain.ErrInvalidToken
 		}
 		return nil, fmt.Errorf("get user: %w", err)
-	}
-
-	// Check user status
-	if user.Status != "active" {
-		return nil, domain.ErrUserInactive
 	}
 
 	// Generate new tokens
@@ -184,13 +166,12 @@ func (s *authService) generateAuthTokens(user *domain.User) (*domain.Token, erro
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    int64(s.accessTokenDuration.Seconds()),
-		User:         user,
 	}, nil
 }
 
 func (s *authService) generateToken(user *domain.User, duration time.Duration) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id": strconv.Itoa(user.ID),
+		"user_id": user.ID,
 		"email":   user.Email,
 		"exp":     time.Now().Add(duration).Unix(),
 		"iat":     time.Now().Unix(),

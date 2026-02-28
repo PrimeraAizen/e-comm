@@ -10,7 +10,7 @@ import (
 	"github.com/PrimeraAizen/e-comm/internal/repository"
 	"github.com/PrimeraAizen/e-comm/internal/server"
 	"github.com/PrimeraAizen/e-comm/internal/service"
-	mongodb "github.com/PrimeraAizen/e-comm/pkg/adapter/mongodb"
+	postgres "github.com/PrimeraAizen/e-comm/pkg/adapter"
 	"github.com/PrimeraAizen/e-comm/pkg/logger"
 )
 
@@ -18,12 +18,16 @@ func StartWebServer(ctx context.Context, cfg *config.Config, appLogger *logger.L
 	appLogger.WithComponent("app").Info("Initializing web server")
 
 	// Initialize database connection
-	appLogger.WithComponent("database").Info("Connecting to MongoDB")
-	db, err := mongodb.New(ctx, &cfg.Mongo)
+	appLogger.WithComponent("database").Info("Connecting to postgres")
+	db, err := postgres.New(ctx, &cfg.PG)
 	if err != nil {
-		appLogger.WithComponent("database").WithError(err).Error("Failed to initialize MongoDB connection")
-		return fmt.Errorf("could not init mongodb connection: %w", err)
+		appLogger.WithComponent("database").WithError(err).Error("Failed to initialize DB connection")
+		return fmt.Errorf("could not init db connection: %w", err)
 	}
+	defer func() {
+		db.Close()
+		appLogger.WithComponent("database").Info("DB connection closed")
+	}()
 
 	appLogger.WithComponent("database").Info("MongoDB connection established")
 
@@ -65,14 +69,8 @@ func StartWebServer(ctx context.Context, cfg *config.Config, appLogger *logger.L
 
 	// Stop HTTP server
 	appLogger.WithComponent("server").Info("Stopping HTTP server")
-	if err := srv.Stop(); err != nil {
+	if err := srv.Stop(shutdownCtx); err != nil {
 		appLogger.WithComponent("server").WithError(err).Error("Error stopping HTTP server")
-	}
-
-	// Close database connection
-	appLogger.WithComponent("database").Info("Closing MongoDB connection")
-	if err := db.Close(shutdownCtx); err != nil {
-		appLogger.WithComponent("database").WithError(err).Error("Error closing MongoDB connection")
 	}
 
 	appLogger.WithComponent("app").Info("Graceful shutdown completed")

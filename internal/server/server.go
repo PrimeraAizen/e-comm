@@ -39,13 +39,10 @@ func (s *Server) Run() {
 	}()
 }
 
-func (s *Server) Stop() error {
+func (s *Server) Stop(ctx context.Context) error {
 	s.logger.WithComponent("server").Info("Initiating graceful shutdown")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
+	if err := s.httpServer.Shutdown(ctx); err != nil {
 		s.logger.WithComponent("server").WithError(err).Error("Error during server shutdown")
 		return err
 	}

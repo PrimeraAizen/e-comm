@@ -30,6 +30,7 @@ type InteractionRepository interface {
 	HasPurchased(ctx context.Context, userID, productID int) (bool, error)
 
 	// Summary
+	
 	GetUserInteractionSummary(ctx context.Context, userID int) (*domain.UserInteractionSummary, error)
 
 	// For recommendations

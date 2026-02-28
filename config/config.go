@@ -21,9 +21,14 @@ const (
 
 type Config struct {
 	Http   Http          `mapstructure:"http"`
-	Mongo  MongoDB       `mapstructure:"mongodb"`
 	Logger logger.Config `mapstructure:"logger"`
 	JWT    JWT           `mapstructure:"jwt"`
+	PG     PG            `mapstructure:"database"`
+}
+
+func (d *PG) connString() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		d.Username, d.Password, d.Host, d.Port, d.Database, d.SSLMode)
 }
 
 func LoadConfig() (*Config, error) {
@@ -50,6 +55,8 @@ func LoadConfigFromDirectory(path string) (*Config, error) {
 		return nil, fmt.Errorf("decode into struct: %w", err)
 	}
 
+	cfg.PG.URL = cfg.PG.connString()
+
 	err = cfg.Validate()
 	if err != nil {
 		return nil, err
@@ -59,36 +66,14 @@ func LoadConfigFromDirectory(path string) (*Config, error) {
 
 func (cfg *Config) Validate() error {
 	if cfg.Http.Host == "" {
-		return fmt.Errorf("missing http host")
+		return fmt.Errorf("%w: missing http host", ErrInvalidConfig)
 	}
 	if cfg.Http.Port == "" {
-		return fmt.Errorf("missing http port")
+		return fmt.Errorf("%w: missing http port", ErrInvalidConfig)
 	}
-	if cfg.Mongo.URI == "" && (cfg.Mongo.Host == "" || cfg.Mongo.Port == "" || cfg.Mongo.Database == "") {
-		return fmt.Errorf("missing mongodb connection settings")
+	if cfg.PG.URL == "" {
+		return fmt.Errorf("%w: missing database url", ErrInvalidConfig)
 	}
-
-	// Build URI if not provided
-	if cfg.Mongo.URI == "" {
-		if cfg.Mongo.Username != "" && cfg.Mongo.Password != "" {
-			cfg.Mongo.URI = fmt.Sprintf("mongodb://%s:%s@%s:%s",
-				cfg.Mongo.Username, cfg.Mongo.Password, cfg.Mongo.Host, cfg.Mongo.Port)
-		} else {
-			cfg.Mongo.URI = fmt.Sprintf("mongodb://%s:%s", cfg.Mongo.Host, cfg.Mongo.Port)
-		}
-	}
-
-	// Set default pool sizes if not provided
-	if cfg.Mongo.MaxPoolSize == 0 {
-		cfg.Mongo.MaxPoolSize = 100
-	}
-	if cfg.Mongo.MinPoolSize == 0 {
-		cfg.Mongo.MinPoolSize = 10
-	}
-	if cfg.Mongo.MaxConnIdleTime == 0 {
-		cfg.Mongo.MaxConnIdleTime = 60
-	}
-
 	// Set default logger config if not provided
 	if cfg.Logger.Level == "" {
 		cfg.Logger.Level = logger.LevelInfo
@@ -128,20 +113,20 @@ type Http struct {
 	Port string `mapstructure:"port"`
 }
 
-type MongoDB struct {
-	URI             string `mapstructure:"uri"`
-	Host            string `mapstructure:"host"`
-	Port            string `mapstructure:"port"`
-	Database        string `mapstructure:"database"`
-	Username        string `mapstructure:"username"`
-	Password        string `mapstructure:"password"`
-	MaxPoolSize     int    `mapstructure:"max_pool_size"`
-	MinPoolSize     int    `mapstructure:"min_pool_size"`
-	MaxConnIdleTime int    `mapstructure:"max_conn_idle_time"` // in seconds
-}
-
 type JWT struct {
 	Secret               string `mapstructure:"secret"`
 	AccessTokenDuration  string `mapstructure:"access_token_duration"`
 	RefreshTokenDuration string `mapstructure:"refresh_token_duration"`
+}
+
+type PG struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Database string `mapstructure:"database"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	SSLMode  string `mapstructure:"ssl_mode"`
+	MaxConns int    `mapstructure:"max_conns"`
+	MinConns int    `mapstructure:"min_conns"`
+	URL      string
 }

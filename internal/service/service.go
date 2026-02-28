@@ -6,13 +6,11 @@ import (
 )
 
 type Service struct {
-	ExampleService        Example
-	HealthService         Health
-	AuthService           AuthService
-	UserService           UserService
-	ProductService        ProductService
-	InteractionService    InteractionService
-	RecommendationService RecommendationService
+	AuthService AuthService
+	// UserService           UserService
+	// ProductService        ProductService
+	// InteractionService    InteractionService
+	// RecommendationService RecommendationService
 }
 
 type Deps struct {
@@ -27,12 +25,10 @@ func NewServices(deps Deps) *Service {
 	}
 
 	return &Service{
-		ExampleService:        NewExampleService(deps.Repos.Example),
-		HealthService:         NewHealthService(deps.Repos.Health),
-		AuthService:           authService,
-		UserService:           NewUserService(deps.Repos.User, deps.Repos.Profile),
-		ProductService:        NewProductService(deps.Repos.Product),
-		InteractionService:    NewInteractionService(deps.Repos.Interaction, deps.Repos.Product),
-		RecommendationService: NewRecommendationService(deps.Repos.Interaction, deps.Repos.Product),
+		AuthService: authService,
+		// UserService:           NewUserService(deps.Repos.User, deps.Repos.Profile),
+		// ProductService:        NewProductService(deps.Repos.Product),
+		// InteractionService:    NewInteractionService(deps.Repos.Interaction, deps.Repos.Product),
+		// RecommendationService: NewRecommendationService(deps.Repos.Interaction, deps.Repos.Product),
 	}
 }

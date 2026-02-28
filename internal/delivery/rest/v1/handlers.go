@@ -3,7 +3,6 @@ package v1
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/PrimeraAizen/e-comm/internal/delivery/middleware"
 	"github.com/PrimeraAizen/e-comm/internal/service"
 	"github.com/PrimeraAizen/e-comm/pkg/logger"
 )
@@ -25,10 +24,10 @@ func (h *Handler) Init(api *gin.RouterGroup) {
 
 	// Public routes
 	h.InitAuthRoutes(v1)
-	
+
 	// Protected routes (require authentication)
-	authMiddleware := middleware.AuthMiddleware(h.services.AuthService)
-	h.InitCategoryRoutes(v1, authMiddleware)
-	h.InitProductRoutes(v1, authMiddleware)
-	h.InitProfileRoutes(v1, authMiddleware)
+	// authMiddleware := middleware.AuthMiddleware(h.services.AuthService)
+	// h.InitCategoryRoutes(v1, authMiddleware)
+	// h.InitProductRoutes(v1, authMiddleware)
+	// h.InitProfileRoutes(v1, authMiddleware)
 }

@@ -1,10 +1,9 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "E-Commerce API with MongoDB, JWT Authentication, Product Catalog, User Interactions, and Recommendation System",
-        "title": "E-Commerce API",
+        "title": "Construction API",
         "contact": {},
-        "version": "1.0"
+        "version": "1.0.0"
     },
     "basePath": "/api/v1",
     "paths": {

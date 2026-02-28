@@ -2,156 +2,98 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/PrimeraAizen/e-comm/internal/domain"
-	mongodb "github.com/PrimeraAizen/e-comm/pkg/adapter/mongodb"
+	postgres "github.com/PrimeraAizen/e-comm/pkg/adapter"
 )
 
 type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) error
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
-	GetByID(ctx context.Context, id int) (*domain.User, error)
-	Update(ctx context.Context, user *domain.User) error
-	UpdateLastLogin(ctx context.Context, id int) error
+	GetByID(ctx context.Context, id string) (*domain.User, error)
+	// Update(ctx context.Context, user *domain.User) error
+	UpdateLastLogin(ctx context.Context, id string) error
 }
 
 type userRepository struct {
-	db *mongodb.MongoDB
+	db *postgres.Postgres
 }
 
-func NewUserRepository(db *mongodb.MongoDB) UserRepository {
-	return &userRepository{db: db}
+func NewUserRepository(db *postgres.Postgres) *userRepository {
+	return &userRepository{
+		db: db,
+	}
 }
 
-func (r *userRepository) Create(ctx context.Context, user *domain.User) error {
-	user.CreatedAt = time.Now()
-	user.UpdatedAt = time.Now()
-	user.Status = "active"
-
-	collection := r.db.Collection("users")
-
-	// Get the next ID
-	nextID, err := r.getNextID(ctx)
-	if err != nil {
-		return fmt.Errorf("get next ID: %w", err)
-	}
-	user.ID = nextID
-
-	_, err = collection.InsertOne(ctx, user)
-	if err != nil {
-		if mongo.IsDuplicateKeyError(err) {
-			return fmt.Errorf("user with this email already exists: %w", err)
-		}
-		return fmt.Errorf("create user: %w", err)
-	}
-
-	return nil
-}
-
-// getNextID gets the next auto-increment ID for users
-func (r *userRepository) getNextID(ctx context.Context) (int, error) {
-	collection := r.db.Collection("users")
-
-	// Find the maximum ID
-	opts := options.Find().SetSort(bson.M{"_id": -1}).SetLimit(1)
-	cursor, err := collection.Find(ctx, bson.M{}, opts)
-	if err != nil {
-		return 0, err
-	}
-	defer cursor.Close(ctx)
-
-	if cursor.Next(ctx) {
-		var result domain.User
-		if err := cursor.Decode(&result); err != nil {
-			return 0, err
-		}
-		return result.ID + 1, nil
-	}
-
-	// If no users exist, start from 1
-	return 1, nil
-}
-
-func (r *userRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	collection := r.db.Collection("users")
-
-	var user domain.User
-	err := collection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, domain.ErrNotFound
-		}
-		return nil, fmt.Errorf("get user by email: %w", err)
-	}
-
-	return &user, nil
-}
-
-func (r *userRepository) GetByID(ctx context.Context, id int) (*domain.User, error) {
-	collection := r.db.Collection("users")
-
-	var user domain.User
-	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, domain.ErrNotFound
-		}
-		return nil, fmt.Errorf("get user by id: %w", err)
-	}
-
-	return &user, nil
-}
-
-func (r *userRepository) Update(ctx context.Context, user *domain.User) error {
-	collection := r.db.Collection("users")
-
-	user.UpdatedAt = time.Now()
-
-	update := bson.M{
-		"$set": bson.M{
-			"email":         user.Email,
-			"password_hash": user.Password,
-			"status":        user.Status,
-			"updated_at":    user.UpdatedAt,
-		},
-	}
-
-	result, err := collection.UpdateOne(ctx, bson.M{"_id": user.ID}, update)
-	if err != nil {
-		return fmt.Errorf("update user: %w", err)
-	}
-
-	if result.MatchedCount == 0 {
-		return domain.ErrNotFound
-	}
-
-	return nil
-}
-
-func (r *userRepository) UpdateLastLogin(ctx context.Context, id int) error {
-	collection := r.db.Collection("users")
-
+func (repo *userRepository) Create(ctx context.Context, user *domain.User) error {
 	now := time.Now()
-	update := bson.M{
-		"$set": bson.M{
-			"last_login_at": now,
-		},
-	}
-
-	result, err := collection.UpdateOne(ctx, bson.M{"_id": id}, update)
+	query, args, err := repo.db.Builder.
+		Insert("users").
+		Columns("email", "password_hash", "created_at", "updated_at").
+		Values(&user.Email, &user.Password, now, now).
+		ToSql()
 	if err != nil {
-		return fmt.Errorf("update last login: %w", err)
+		return err
 	}
-
-	if result.MatchedCount == 0 {
-		return domain.ErrNotFound
+	_, err = repo.db.Pool.Exec(ctx, query, args...)
+	if err != nil {
+		return err
 	}
+	return nil
+}
 
+func (repo *userRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	res := domain.User{}
+	query, args, err := repo.db.Builder.Select("id", "email", "password_hash", "created_at", "updated_at", "last_login_at").From("users").Where(squirrel.Eq{
+		"email": email,
+	}).ToSql()
+	if err != nil {
+		return nil, err
+	}
+	err = repo.db.Pool.QueryRow(ctx, query, args...).Scan(&res.ID, &res.Email, &res.Password, &res.CreatedAt, &res.UpdatedAt, &res.LastLoginAt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (repo *userRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
+	res := domain.User{}
+	query, args, err := repo.db.Builder.Select("id", "email", "password_hash", "created_at", "updated_at", "last_login_at").From("users").Where(squirrel.Eq{
+		"id": id,
+	}).ToSql()
+	if err != nil {
+		return nil, err
+	}
+	err = repo.db.Pool.QueryRow(ctx, query, args...).Scan(&res.ID, &res.Email, &res.Password, &res.CreatedAt, &res.UpdatedAt, &res.LastLoginAt)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (repo *userRepository) UpdateLastLogin(ctx context.Context, id string) error {
+	now := time.Now()
+	match := squirrel.Eq{
+		"id": id,
+	}
+	query, args, err := repo.db.Builder.Update("users").Set("last_login_at", now).Where(match).ToSql()
+	if err != nil {
+		return err
+	}
+	rows, err := repo.db.Pool.Exec(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	if rows.RowsAffected() == 0 {
+		return domain.ErrInvalidCredentials
+	}
 	return nil
 }
