@@ -15,7 +15,7 @@ type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) error
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetByID(ctx context.Context, id string) (*domain.User, error)
-	// Update(ctx context.Context, user *domain.User) error
+	UpdatePassword(ctx context.Context, id, password string) error
 	UpdateLastLogin(ctx context.Context, id string) error
 }
 
@@ -93,7 +93,23 @@ func (repo *userRepository) UpdateLastLogin(ctx context.Context, id string) erro
 		return err
 	}
 	if rows.RowsAffected() == 0 {
-		return domain.ErrInvalidCredentials
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (repo *userRepository) UpdatePassword(ctx context.Context, id, password string) error {
+	now := time.Now()
+	query, args, err := repo.db.Builder.Update("users").Set("password_hash", password).Set("updated_at", now).Where(squirrel.Eq{"id": id}).ToSql()
+	if err != nil {
+		return err
+	}
+	rows, err := repo.db.Pool.Exec(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	if rows.RowsAffected() == 0 {
+		return domain.ErrNotFound
 	}
 	return nil
 }
