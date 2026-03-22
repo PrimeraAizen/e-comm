@@ -5,17 +5,17 @@ import (
 )
 
 type Repository struct {
-	User UserRepository
-	// Profile     ProfileRepository
-	// Product     ProductRepository
-	// Interaction InteractionRepository
+	User        UserRepository
+	Profile     ProfileRepository
+	Product     ProductRepository
+	Interaction InteractionRepository
 }
 
 func NewRepositories(db *postgres.Postgres) *Repository {
 	return &Repository{
-		User: NewUserRepository(db),
-		// Profile:     NewProfileRepository(db),
-		// Product:     NewProductRepository(db),
-		// Interaction: NewInteractionRepository(db),
+		User:        NewUserRepository(db),
+		Profile:     NewProfileRepository(db),
+		Product:     NewProductRepository(db),
+		Interaction: NewInteractionRepository(db),
 	}
 }
