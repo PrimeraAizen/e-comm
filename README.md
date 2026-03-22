@@ -1,45 +1,45 @@
 # E-Commerce API with Recommendation System
 
-A modern e-commerce REST API built with Go, MongoDB, JWT authentication, and collaborative filtering recommendation system.
+A modern e-commerce REST API built with Go, PostgreSQL, JWT authentication, and collaborative filtering recommendation system.
 
-## 🚀 Features
+## Features
 
 - **User Authentication**: JWT-based auth with access and refresh tokens
 - **Product Catalog**: Full CRUD with categories, search, filtering, and pagination
-- **MongoDB with Integer IDs**: NoSQL database with auto-incrementing integer IDs for better performance
-- **User Interactions**: Track product views, likes, and purchases
+- **PostgreSQL with UUIDs**: Relational database with UUID primary keys, migrations via Goose
+- **User Interactions**: Track product views, likes, and purchases (via orders)
 - **Recommendation System**: Collaborative filtering with weighted user interactions (purchases 50%, likes 35%, views 15%)
 - **User Profiles**: Separate profile management with personal information
+- **Product Statistics**: Materialized view for fast aggregated metrics (views, likes, purchases, ratings)
 - **Swagger Documentation**: Complete OpenAPI/Swagger UI at `/swagger/index.html`
 - **CORS Support**: Pre-configured for frontend integration
 - **Graceful Shutdown**: Proper cleanup of resources on SIGTERM/SIGINT
 - **RESTful API**: Clean architecture with Gin framework
 - **Docker Support**: Easy deployment with Docker Compose
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Go 1.23 or higher
 - Docker and Docker Compose (recommended)
-- MongoDB 7.0+ (if not using Docker)
+- PostgreSQL 15+ (if not using Docker)
 
-## 🛠️ Quick Start
+## Quick Start
 
 ### 1. Clone and Setup
 
 ```bash
 git clone <repository-url>
-cd db-assignment6
+cd e-comm
 ```
 
 ### 2. Configure Environment
 
-Copy and edit the configuration:
 ```bash
 cp config/config.example.yaml config/config.yaml
 # Edit config/config.yaml with your settings
 ```
 
-### 3. Start MongoDB
+### 3. Start PostgreSQL
 
 ```bash
 make docker-up
@@ -51,233 +51,141 @@ make docker-up
 make run
 ```
 
-API available at: `http://localhost:8080`  
+Migrations run automatically on startup.
+
+API available at: `http://localhost:8080`
 Swagger UI available at: `http://localhost:8080/swagger/index.html`
 
-### Or Do Everything at Once
+## Default Credentials
+
+Seeded automatically by migrations:
+
+| Role      | Email                    | Password    |
+|-----------|--------------------------|-------------|
+| Admin     | admin@example.com        | password123 |
+| Moderator | moderator@example.com    | password123 |
+| User      | user1@example.com        | password123 |
+| User      | user2@example.com        | password123 |
+| Student   | student@example.com      | password123 |
+| Teacher   | teacher@example.com      | password123 |
+
+To re-seed manually:
 
 ```bash
-make docker-up  # Start MongoDB
-make run        # Start the application
+go run scripts/seed/main.go
 ```
 
-## 🔑 Default Credentials
+## API Documentation
 
-Register a new user or use test credentials from `docs/DEFAULT_CREDENTIALS.md`
-
-Default test user:
-- Email: `diyas.nurullaev@gmail.com`
-- Password: `password123`
-
-## 📚 API Documentation
-
-### Swagger UI (Recommended)
+### Swagger UI
 
 Visit `http://localhost:8080/swagger/index.html` for interactive API documentation.
 
 **Authentication in Swagger:**
-1. Click the "Authorize" button (green lock icon)
-2. Enter: `Bearer <your_access_token>` (include "Bearer " prefix)
+1. Click the "Authorize" button
+2. Enter: `Bearer <your_access_token>`
 3. Click "Authorize" then "Close"
-
-Or simply enter your JWT token - the middleware accepts both formats.
 
 ### Authentication Endpoints
 
 ```bash
 # Register
 POST /api/v1/auth/register
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
+{"email": "user@example.com", "password": "password123"}
 
 # Login
 POST /api/v1/auth/login
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
+{"email": "user@example.com", "password": "password123"}
 
 # Refresh Token
 POST /api/v1/auth/refresh
-{
-  "refresh_token": "your-refresh-token"
-}
+{"refresh_token": "your-refresh-token"}
 ```
 
-### Product Endpoints (All require authentication)
+### Product Endpoints (require authentication)
 
 ```bash
 # List products with filters and pagination
 GET /api/v1/products?page=1&limit=20
-GET /api/v1/products?search=laptop&category_id=4
+GET /api/v1/products?search=laptop&category_id=<uuid>
 GET /api/v1/products?min_price=100&max_price=1000&sort_by=price&sort_order=asc
-Authorization: Bearer <token>
 
 # Get product details
 GET /api/v1/products/:id
-Authorization: Bearer <token>
 
-# Get product statistics
+# Get product statistics (from materialized view)
 GET /api/v1/products/:id/statistics
-Authorization: Bearer <token>
 
 # Create product (Admin only)
 POST /api/v1/products
-Authorization: Bearer <token>
-{
-  "name": "iPhone 15 Pro",
-  "description": "Latest Apple flagship",
-  "category_id": 1,
-  "price": 999.99,
-  "stock": 100,
-  "image_url": "https://example.com/image.jpg"
-}
+{"name": "iPhone 15 Pro", "description": "...", "category_id": "<uuid>", "price": 999.99, "stock": 100}
 
-# Update product (Admin only - supports partial updates)
+# Update product (Admin only)
 PUT /api/v1/products/:id
-Authorization: Bearer <token>
-{
-  "price": 899.99,
-  "stock": 150
-}
 
 # Delete product (Admin only)
 DELETE /api/v1/products/:id
-Authorization: Bearer <token>
 ```
 
 ### User Interaction Endpoints
 
 ```bash
-# Record product view
-POST /api/v1/products/:id/view
-Authorization: Bearer <token>
-
-# Like a product
-POST /api/v1/products/:id/like
-Authorization: Bearer <token>
-
-# Unlike a product
-DELETE /api/v1/products/:id/like
-Authorization: Bearer <token>
-
-# Check if product is liked
-GET /api/v1/products/:id/liked
-Authorization: Bearer <token>
-
-# Purchase a product
-POST /api/v1/products/:id/purchase
-Authorization: Bearer <token>
-{
-  "quantity": 2
-}
-
-# Check if product is purchased
-GET /api/v1/products/:id/purchased
-Authorization: Bearer <token>
+POST   /api/v1/products/:id/view       # Record view
+POST   /api/v1/products/:id/like       # Like product
+DELETE /api/v1/products/:id/like       # Unlike product
+GET    /api/v1/products/:id/liked      # Check if liked
+POST   /api/v1/products/:id/purchase   # Purchase (creates order + order_item)
+GET    /api/v1/products/:id/purchased  # Check if purchased
 ```
 
-### Category Endpoints (All require authentication)
+### Category Endpoints (require authentication)
 
 ```bash
-# List all categories
-GET /api/v1/categories
-Authorization: Bearer <token>
-
-# Get category
-GET /api/v1/categories/:id
-Authorization: Bearer <token>
-
-# Create category (Admin only)
-POST /api/v1/categories
-Authorization: Bearer <token>
-
-# Update category (Admin only - supports partial updates)
-PUT /api/v1/categories/:id
-Authorization: Bearer <token>
-
-# Delete category (Admin only)
-DELETE /api/v1/categories/:id
-Authorization: Bearer <token>
+GET    /api/v1/categories        # List all categories
+GET    /api/v1/categories/:id    # Get category
+POST   /api/v1/categories        # Create (Admin only)
+PUT    /api/v1/categories/:id    # Update (Admin only)
+DELETE /api/v1/categories/:id    # Delete (Admin only)
 ```
 
 ### Profile Endpoints
 
 ```bash
-# Get my profile
-GET /api/v1/profiles/me
-Authorization: Bearer <token>
-
-# Update profile (supports partial updates)
-PUT /api/v1/profiles/me
-Authorization: Bearer <token>
-{
-  "first_name": "John",
-  "last_name": "Doe",
-  "phone": "+1234567890"
-}
-
-# Change password
-PUT /api/v1/profiles/me/password
-Authorization: Bearer <token>
-{
-  "old_password": "oldpass123",
-  "new_password": "newpass123"
-}
-
-# Delete account
-DELETE /api/v1/profiles/me/account
-Authorization: Bearer <token>
+GET    /api/v1/profiles/me               # Get my profile
+PUT    /api/v1/profiles/me               # Update profile
+PUT    /api/v1/profiles/me/password      # Change password
+DELETE /api/v1/profiles/me/account       # Delete account
 ```
 
 ### Recommendation Endpoints
 
 ```bash
-# Get personalized product recommendations
-GET /api/v1/profiles/me/recommendations?limit=10
-Authorization: Bearer <token>
-
-# Get my interaction history
-GET /api/v1/profiles/me/interactions
-Authorization: Bearer <token>
-
-# Get my viewed products
-GET /api/v1/profiles/me/views
-Authorization: Bearer <token>
-
-# Get my liked products
-GET /api/v1/profiles/me/likes
-Authorization: Bearer <token>
-
-# Get my purchase history
-GET /api/v1/profiles/me/purchases
-Authorization: Bearer <token>
-
-# Find similar users
-GET /api/v1/profiles/me/similar
-Authorization: Bearer <token>
+GET /api/v1/profiles/me/recommendations  # Personalized recommendations
+GET /api/v1/profiles/me/interactions     # Full interaction history
+GET /api/v1/profiles/me/views            # Viewed products
+GET /api/v1/profiles/me/likes            # Liked products
+GET /api/v1/profiles/me/purchases        # Purchase history
+GET /api/v1/profiles/me/similar          # Similar users
 ```
 
-## ⚙️ Configuration
+## Configuration
 
-Edit `config/config.yaml`:
+`config/config.yaml`:
 
 ```yaml
 http:
   host: "0.0.0.0"
   port: "8080"
 
-mongodb:
+database:
   host: localhost
-  port: "27017"
+  port: "5432"
   database: ecommerce
-  username: ""
-  password: ""
-  max_pool_size: 100
-  min_pool_size: 10
-  max_conn_idle_time: 60
+  username: postgres
+  password: postgres
+  ssl_mode: disable
+  max_conns: 25
+  min_conns: 5
 
 jwt:
   secret: "your-secret-key-change-in-production"
@@ -287,351 +195,166 @@ jwt:
 logger:
   level: info
   format: json
-  service: template
+  service: e-comm
   version: "1.0.0"
   environment: development
 ```
 
-### CORS Configuration
-
-CORS is pre-configured for common development origins:
-- `http://localhost:3000` (React)
-- `http://localhost:5173` (Vite)
-- `http://localhost:8080` (Swagger UI)
-
-To add more origins, edit `internal/delivery/handler.go`:
-```go
-AllowOrigins: []string{
-    "http://localhost:3000",
-    "https://yourdomain.com",
-},
-```
-
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 .
-├── cmd/
-│   └── web/
-│       └── main.go              # Application entry point
+├── cmd/web/main.go                      # Entry point
 ├── config/
-│   ├── config.go                # Configuration loader
-│   ├── config.yaml              # Configuration file
-│   └── config.example.yaml      # Example configuration
+│   ├── config.go                        # Configuration loader
+│   └── config.yaml                      # Configuration file
 ├── internal/
-│   ├── app/
-│   │   └── app.go               # App initialization
 │   ├── domain/
-│   │   ├── user.go              # User domain model
-│   │   ├── product.go           # Product domain models
-│   │   ├── interaction.go       # User interaction models
-│   │   ├── recommendation.go    # Recommendation models
-│   │   └── errors.go            # Domain errors
+│   │   ├── user.go                      # User model (UUID string ID)
+│   │   ├── profile.go                   # Profile model
+│   │   ├── product.go                   # Product, Category, ProductFilter models
+│   │   ├── interaction.go               # View, Like, Purchase, Summary models
+│   │   ├── recommendation.go            # Recommendation models
+│   │   └── errors.go                    # Domain errors
 │   ├── repository/
-│   │   ├── repository.go        # Repository factory
-│   │   ├── userRepository.go    # User data access
-│   │   ├── productRepository.go # Product data access
-│   │   ├── profileRepository.go # Profile data access
-│   │   └── interactionRepository.go # Interaction tracking
+│   │   ├── repository.go                # Repository container
+│   │   ├── userRepository.go            # User CRUD
+│   │   ├── profile_repository.go        # Profile CRUD
+│   │   ├── product_repository.go        # Product & Category CRUD + statistics
+│   │   └── interaction_repository.go    # Views, likes, purchases
 │   ├── service/
-│   │   ├── service.go           # Service factory
-│   │   ├── authService.go       # Auth business logic
-│   │   ├── userService.go       # User management
-│   │   ├── productService.go    # Product business logic
-│   │   ├── interactionService.go # Interaction tracking
-│   │   └── recommendationService.go # Collaborative filtering
-│   ├── delivery/
-│   │   ├── handler.go           # HTTP handler setup with CORS
-│   │   ├── dto/
-│   │   │   ├── auth.go          # Auth DTOs
-│   │   │   └── product.go       # Product DTOs
-│   │   ├── middleware/
-│   │   │   └── auth.go          # JWT middleware
-│   │   └── rest/v1/
-│   │       ├── handlers.go      # Route registration
-│   │       ├── auth_api.go      # Auth endpoints
-│   │       ├── product_api.go   # Product & interaction endpoints
-│   │       ├── categories_api.go # Category endpoints
-│   │       └── profile_api.go   # Profile & recommendation endpoints
-│   └── server/
-│       └── server.go            # HTTP server
+│   │   ├── service.go                   # Service container
+│   │   └── authService.go              # JWT auth logic
+│   ├── delivery/rest/v1/
+│   │   ├── handlers.go                  # Route registration
+│   │   └── auth_api.go                  # Auth endpoints
+│   └── server/server.go                 # HTTP server
 ├── pkg/
-│   ├── adapter/
-│   │   └── mongodb/
-│   │       └── mongodb.go       # MongoDB client
-│   └── logger/
-│       └── logger.go            # Structured logger
-├── scripts/
-│   └── seed/
-│       └── main.go              # Database seeder
-├── docs/
-│   ├── docs.go                  # Generated Swagger docs
-│   ├── swagger.json             # OpenAPI specification (JSON)
-│   ├── swagger.yaml             # OpenAPI specification (YAML)
-│   ├── MONGODB_MIGRATION.md     # MongoDB migration guide
-│   ├── MIGRATION_SUMMARY.md     # Migration summary
-│   ├── JWT_AUTH.md              # Auth documentation
-│   ├── JWT_AUTH_IMPLEMENTATION.md # Auth implementation details
-│   ├── API_PRODUCT_ENDPOINTS.md # Product API docs
-│   └── DEFAULT_CREDENTIALS.md   # Test credentials
-├── docker-compose.yml           # Docker Compose config
-├── Dockerfile                   # Docker build file
-├── Makefile                     # Build automation
-├── go.mod                       # Go dependencies
-└── go.sum                       # Go checksums
+│   └── adapter/
+│       ├── postgres.go                  # pgxpool connection + squirrel builder
+│       └── migration.go                 # Goose migration runner
+├── migrations/postgres/
+│   ├── 20250916160326_initial_migration.sql   # users, profiles, roles schema
+│   ├── 20251107000000_ecommerce_tables.sql    # products, categories, interactions, orders
+│   └── 20251107000001_seed_data.sql           # Default roles, users, products
+├── scripts/seed/main.go                 # Manual re-seed script
+├── docs/                                # Swagger generated docs
+├── docker-compose.yml
+├── Makefile
+└── go.mod
 ```
 
-## 🧪 Testing
+## Database Schema
 
-### Using Swagger UI (Recommended)
+All primary keys are UUIDs (`uuid_generate_v4()`). Key tables:
 
-1. Open `http://localhost:8080/swagger/index.html`
-2. Click "Authorize" button
-3. Login to get token:
-   - Use POST `/api/v1/auth/login` 
-   - Copy the `access_token` from response
-4. Enter: `Bearer <your_token>` in the authorization dialog
-5. Test any endpoint interactively
+| Table | Description |
+|-------|-------------|
+| `users` | User accounts |
+| `profiles` | Extended user info (name, phone, address) |
+| `roles` / `user_roles` | Role-based access control |
+| `categories` | Hierarchical product categories |
+| `products` | Product catalog with full-text search indexes |
+| `user_product_views` | Product view tracking |
+| `user_product_likes` | Unique likes per user/product |
+| `orders` / `order_items` | Purchase history |
+| `product_reviews` | Ratings and reviews |
+| `cart_items` | Shopping cart |
+| `product_statistics` | Materialized view: aggregated metrics |
 
-### Using cURL
+Migrations are managed by [Goose](https://github.com/pressly/goose) and run automatically on startup.
 
-```bash
-# 1. Register a user
-curl -X POST http://localhost:8080/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password123"}'
-
-# 2. Login and get token
-TOKEN=$(curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password123"}' \
-  | jq -r '.access_token')
-
-# 3. List products
-curl http://localhost:8080/api/v1/products \
-  -H "Authorization: Bearer $TOKEN"
-
-# 4. Get recommendations
-curl http://localhost:8080/api/v1/profiles/me/recommendations \
-  -H "Authorization: Bearer $TOKEN"
-
-# 5. Purchase a product
-curl -X POST http://localhost:8080/api/v1/products/2/purchase \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"quantity": 1}'
-```
-
-### Authentication Script
-
-```bash
-./scripts/test_auth_api.sh
-```
-
-## 🐳 Docker Deployment
-
-### Build and Run with Docker Compose
-
-```bash
-# Start everything
-docker-compose up -d
-
-# View logs
-docker-compose logs -f app
-
-# Stop everything
-docker-compose down
-```
-
-### MongoDB Collections
-
-The application uses these MongoDB collections:
-
-- `users` - User accounts with auto-incrementing integer IDs
-- `profiles` - Extended user profiles (first_name, last_name, phone, address, etc.)
-- `categories` - Product categories with integer IDs
-- `products` - Product catalog with integer IDs
-- `interactions` - User interactions (views, likes, purchases) for recommendations
-- `counters` - Auto-increment counters for integer ID generation
-
-## 📖 Documentation
-
-- [Swagger UI](http://localhost:8080/swagger/index.html) - Interactive API documentation
-- [MongoDB Migration Guide](docs/MONGODB_MIGRATION.md) - Detailed migration notes
-- [Migration Summary](docs/MIGRATION_SUMMARY.md) - Quick migration overview
-- [JWT Authentication](docs/JWT_AUTH.md) - Auth implementation details
-- [JWT Implementation](docs/JWT_AUTH_IMPLEMENTATION.md) - Technical auth details
-- [Product API](docs/API_PRODUCT_ENDPOINTS.md) - Complete product endpoint docs
-- [Default Credentials](docs/DEFAULT_CREDENTIALS.md) - Test user accounts
-
-## 🔧 Makefile Commands
+## Makefile Commands
 
 ```bash
 make run          # Run the application
 make build        # Build binary
 make clean        # Remove build artifacts
-make docker-up    # Start MongoDB
+make docker-up    # Start PostgreSQL
 make docker-down  # Stop Docker containers
 ```
 
-## 🚨 Troubleshooting
-
-### MongoDB Connection Failed
+## Testing
 
 ```bash
-# Check if MongoDB is running
-docker ps | grep mongodb
+# Register
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
 
-# Start MongoDB
-make docker-up
+# Login and capture token
+TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}' \
+  | jq -r '.access_token')
 
-# Check MongoDB logs
-docker logs ecommerce_mongodb
+# List products
+curl http://localhost:8080/api/v1/products \
+  -H "Authorization: Bearer $TOKEN"
+
+# Purchase a product
+curl -X POST http://localhost:8080/api/v1/products/<uuid>/purchase \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 1}'
+
+# Get recommendations
+curl http://localhost:8080/api/v1/profiles/me/recommendations \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
-### Application Won't Start
+## Docker Deployment
 
 ```bash
-# Check configuration
-cat config/config.yaml
+docker-compose up -d      # Start everything
+docker-compose logs -f    # View logs
+docker-compose down       # Stop everything
+```
 
-# Verify MongoDB is accessible
-docker exec -it ecommerce_mongodb mongosh
+## Troubleshooting
 
-# Check if port 8080 is in use
-lsof -ti:8080
+### PostgreSQL connection failed
 
-# Kill process on port 8080
+```bash
+docker ps | grep postgres
+make docker-up
+docker logs ecommerce_postgres
+```
+
+### Port 8080 already in use
+
+```bash
 lsof -ti:8080 | xargs kill -9
 ```
 
-### Graceful Shutdown
+### Refresh materialized view manually
 
-The application supports graceful shutdown with proper resource cleanup:
+The `product_statistics` view is refreshed via the API, but can also be refreshed directly:
 
-```bash
-# Send SIGTERM signal (recommended)
-pkill -TERM ecommerce
-
-# Or use Ctrl+C if running in foreground
-# The application will:
-# 1. Stop accepting new HTTP requests
-# 2. Wait for in-flight requests to complete (max 10 seconds)
-# 3. Close MongoDB connections
-# 4. Exit cleanly
+```sql
+REFRESH MATERIALIZED VIEW CONCURRENTLY product_statistics;
 ```
 
-**Shutdown timeout:** 10 seconds for HTTP server + database cleanup
+## Recommendation System
 
-### CORS Issues
+Collaborative filtering based on weighted user interactions:
 
-If you're getting CORS errors from your frontend:
+- **Purchases**: 50% weight
+- **Likes**: 35% weight
+- **Views**: 15% weight
 
-1. Check that your origin is in the allowed list (`internal/delivery/handler.go`)
-2. Verify you're including the `Authorization` header correctly
-3. Check browser console for specific CORS error messages
+The algorithm finds users with similar interaction patterns (weighted Jaccard similarity) and recommends products those users engaged with that the current user hasn't seen yet.
 
-### Swagger Authentication Not Working
+## Tech Stack
 
-Make sure to include "Bearer " prefix:
-- ✅ Correct: `Bearer eyJhbGciOiJIUzI1NiIs...`
-- ❌ Wrong: `eyJhbGciOiJIUzI1NiIs...`
-
-The middleware also accepts tokens without "Bearer " prefix for convenience.
-
-## 🎯 Recommendation System
-
-The recommendation system is **fully implemented** using collaborative filtering:
-
-### Features
-
-1. **Weighted User Interactions**:
-   - Purchases: 50% weight (strongest signal)
-   - Likes: 35% weight (strong interest)
-   - Views: 15% weight (mild interest)
-
-2. **User-Based Collaborative Filtering**:
-   - Finds users with similar interaction patterns
-   - Calculates similarity using weighted Jaccard index
-   - Recommends products that similar users interacted with
-
-3. **Endpoints**:
-   - `GET /api/v1/profiles/me/recommendations` - Get personalized recommendations
-   - `GET /api/v1/profiles/me/similar` - Find similar users
-   - `GET /api/v1/profiles/me/interactions` - View interaction history
-
-### How It Works
-
-```bash
-# 1. User interacts with products
-POST /api/v1/products/1/view
-POST /api/v1/products/2/like  
-POST /api/v1/products/3/purchase
-
-# 2. System tracks interactions in MongoDB
-# Collection: interactions
-# { user_id, product_id, interaction_type, quantity, created_at }
-
-# 3. Get recommendations based on similar users
-GET /api/v1/profiles/me/recommendations?limit=10
-```
-
-### Algorithm
-
-```
-For each user U:
-  1. Find all other users who interacted with similar products
-  2. Calculate similarity score using weighted interactions
-  3. Rank similar users by similarity score
-  4. Recommend products that similar users liked/purchased
-  5. Exclude products current user already interacted with
-  6. Return top N recommendations
-```
-
-### Example Response
-
-```json
-{
-  "user_id": 8,
-  "recommendations": [
-    {
-      "product_id": 5,
-      "product_name": "Sony WH-1000XM5",
-      "score": 0.85,
-      "reason": "Based on users with similar interests"
-    }
-  ],
-  "similar_users": [
-    {
-      "user_id": 12,
-      "similarity_score": 0.75
-    }
-  ]
-}
-```
-
-## 📝 License
-
-This project is for educational purposes (Database Assignment #6).
-
-## 👥 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
-
-## 🙏 Acknowledgments
-
-- Built with [Gin Web Framework](https://github.com/gin-gonic/gin)
-- MongoDB Go Driver
-- JWT implementation with [golang-jwt](https://github.com/golang-jwt/jwt)
-- Swagger documentation with [swaggo](https://github.com/swaggo/swag)
-- CORS middleware with [gin-contrib/cors](https://github.com/gin-contrib/cors)
-- Clean Architecture principles
-- Collaborative filtering algorithm for recommendations
+- [Gin](https://github.com/gin-gonic/gin) — HTTP framework
+- [pgx/v5](https://github.com/jackc/pgx) — PostgreSQL driver
+- [squirrel](https://github.com/Masterminds/squirrel) — SQL query builder
+- [Goose](https://github.com/pressly/goose) — Database migrations
+- [golang-jwt](https://github.com/golang-jwt/jwt) — JWT tokens
+- [swaggo](https://github.com/swaggo/swag) — Swagger docs
+- [viper](https://github.com/spf13/viper) — Configuration
 
 ---
 
-**Last Updated:** November 9, 2025
+*Last Updated: March 2026*
