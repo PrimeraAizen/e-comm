@@ -2,7 +2,6 @@ package v1
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/PrimeraAizen/e-comm/internal/delivery/dto"
 	"github.com/PrimeraAizen/e-comm/internal/domain"
@@ -55,12 +54,7 @@ func (h *Handler) ListCategories(c *gin.Context) {
 // @Success 200 {object} domain.Category
 // @Router /categories/{id} [get]
 func (h *Handler) GetCategory(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid category id"})
-		return
-	}
+	id := c.Param("id")
 
 	category, err := h.services.ProductService.GetCategory(c.Request.Context(), id)
 	if err != nil {
@@ -117,7 +111,7 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 
 // UpdateCategory godoc
 // @Summary Update category
-// @Description Update an existing category 
+// @Description Update an existing category
 // @Tags categories
 // @Accept json
 // @Produce json
@@ -127,12 +121,7 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 // @Success 200 {object} domain.Category
 // @Router /categories/{id} [put]
 func (h *Handler) UpdateCategory(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid category id"})
-		return
-	}
+	id := c.Param("id")
 
 	var req dto.UpdateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -180,7 +169,7 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 
 // DeleteCategory godoc
 // @Summary Delete category
-// @Description Delete a category 
+// @Description Delete a category
 // @Tags categories
 // @Accept json
 // @Produce json
@@ -189,12 +178,7 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 // @Success 204
 // @Router /categories/{id} [delete]
 func (h *Handler) DeleteCategory(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid category id"})
-		return
-	}
+	id := c.Param("id")
 
 	if err := h.services.ProductService.DeleteCategory(c.Request.Context(), id); err != nil {
 		if err == domain.ErrNotFound {

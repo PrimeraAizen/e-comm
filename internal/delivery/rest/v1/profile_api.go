@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -39,17 +40,12 @@ func (h *Handler) InitProfileRoutes(rg *gin.RouterGroup, authMiddleware gin.Hand
 // @Router /profiles/me [get]
 func (h *Handler) GetProfile(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
-
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
+	userID := userIDVal.(string)
 
 	// Get user and profile
 	user, profile, err := h.services.UserService.GetProfile(c.Request.Context(), userID)
@@ -113,17 +109,12 @@ func (h *Handler) GetProfile(c *gin.Context) {
 // @Router /profiles/me [put]
 func (h *Handler) UpdateProfile(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
-
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
+	userID := userIDVal.(string)
 
 	// Parse request
 	var req dto.UpdateProfileRequest
@@ -233,17 +224,12 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 // @Router /profiles/me/password [put]
 func (h *Handler) ChangePassword(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
-
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
+	userID := userIDVal.(string)
 
 	// Parse request
 	var req dto.ChangePasswordRequest
@@ -259,9 +245,9 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	}
 
 	// Change password
-	if err := h.services.UserService.ChangePassword(c.Request.Context(), userID, req.CurrentPassword, req.NewPassword); err != nil {
+	if err := h.services.AuthService.ChangePassword(c.Request.Context(), userID, req.CurrentPassword, req.NewPassword); err != nil {
 		h.logger.WithComponent("profile").WithError(err).Error("Failed to change password")
-		if err.Error() == "invalid current password" {
+		if errors.Is(err, domain.ErrInvalidCredentials) {
 			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: err.Error()})
 			return
 		}
@@ -282,17 +268,12 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 // @Router /profiles/me/account [delete]
 func (h *Handler) DeleteAccount(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
-
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
+	userID := userIDVal.(string)
 
 	// Delete account
 	if err := h.services.UserService.DeleteAccount(c.Request.Context(), userID); err != nil {
@@ -315,17 +296,12 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 // @Router /profiles/me/interactions [get]
 func (h *Handler) GetMyInteractions(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
-
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
+	userID := userIDVal.(string)
 
 	summary, err := h.services.InteractionService.GetUserInteractionSummary(c.Request.Context(), userID)
 	if err != nil {
@@ -349,17 +325,12 @@ func (h *Handler) GetMyInteractions(c *gin.Context) {
 // @Router /profiles/me/views [get]
 func (h *Handler) GetMyViewHistory(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
-
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
+	userID := userIDVal.(string)
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
@@ -388,17 +359,12 @@ func (h *Handler) GetMyViewHistory(c *gin.Context) {
 // @Router /profiles/me/likes [get]
 func (h *Handler) GetMyLikedProducts(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
-
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
+	userID := userIDVal.(string)
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
@@ -426,17 +392,12 @@ func (h *Handler) GetMyLikedProducts(c *gin.Context) {
 // @Router /profiles/me/recommendations [get]
 func (h *Handler) GetRecommendations(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
-
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
+	userID := userIDVal.(string)
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	if limit <= 0 || limit > 50 {
@@ -464,17 +425,12 @@ func (h *Handler) GetRecommendations(c *gin.Context) {
 // @Router /profiles/me/similar [get]
 func (h *Handler) GetSimilarUsers(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
-
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
+	userID := userIDVal.(string)
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	if limit <= 0 || limit > 50 {
@@ -507,17 +463,12 @@ func (h *Handler) GetSimilarUsers(c *gin.Context) {
 // @Router /profiles/me/purchases [get]
 func (h *Handler) GetMyPurchases(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
-
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
+	userID := userIDVal.(string)
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 

@@ -4,13 +4,16 @@ import (
 	"time"
 )
 
+var StatusUserInactive = "inactive"
+
 type User struct {
-	ID          string     `json:"id" `
-	Email       string     `json:"email" `
-	Password    string     `json:"-"`
-	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID           string     `json:"id"`
+	Email        string     `json:"email"`
+	PasswordHash string     `json:"-"`
+	Status       string     `json:"status"`
+	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 type LoginRequest struct {

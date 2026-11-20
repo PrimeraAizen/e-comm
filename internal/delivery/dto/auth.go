@@ -4,35 +4,24 @@ import (
 	"fmt"
 
 	"github.com/go-playground/validator/v10"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/PrimeraAizen/e-comm/internal/domain"
 )
 
+var validate = validator.New()
+
 type RegisterRequest struct {
 	Email           string `json:"email" validate:"required,email"`
-	Password        string `json:"password" validate:"required,min=8"`
-	PasswordConfirm string `json:"password_confirm" validate:"required,min=8"`
+	Password        string `json:"password" validate:"required,min=8,max=72"`
+	PasswordConfirm string `json:"password_confirm" validate:"required,min=8,max=72"`
 }
 
 func (r *RegisterRequest) Validate() error {
-	validate := validator.New()
-	if err := validate.Struct(r); err != nil {
+	if r.Password != r.PasswordConfirm {
 		return domain.ErrValidation
 	}
-	return nil
-}
 
-func (r *RegisterRequest) ToDomain() (*domain.User, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(r.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
-	}
-
-	return &domain.User{
-		Password: string(hashedPassword),
-		Email:    r.Email,
-	}, nil
+	return validateStruct(r)
 }
 
 type LoginRequest struct {
@@ -41,18 +30,7 @@ type LoginRequest struct {
 }
 
 func (l *LoginRequest) Validate() error {
-	validate := validator.New()
-	if err := validate.Struct(l); err != nil {
-		return domain.ErrValidation
-	}
-	return nil
-}
-
-func (l *LoginRequest) ToDomain() *domain.User {
-	return &domain.User{
-		Email:    l.Email,
-		Password: l.Password,
-	}
+	return validateStruct(l)
 }
 
 type AuthResponse struct {
@@ -69,8 +47,8 @@ type RefreshTokenRequest struct {
 
 // ProfileResponse represents user profile information
 type ProfileResponse struct {
-	ID          int    `json:"id"`
-	UserID      int    `json:"user_id"`
+	ID          string `json:"id"`
+	UserID      string `json:"user_id"`
 	FirstName   string `json:"first_name"`
 	LastName    string `json:"last_name"`
 	MiddleName  string `json:"middle_name,omitempty"`
@@ -106,6 +84,7 @@ func (u *UpdateProfileRequest) Validate() error {
 	if err := validate.Struct(u); err != nil {
 		return domain.ErrValidation
 	}
+
 	return nil
 }
 
@@ -117,14 +96,11 @@ type ChangePasswordRequest struct {
 }
 
 func (c *ChangePasswordRequest) Validate() error {
-	validate := validator.New()
-	if err := validate.Struct(c); err != nil {
-		return domain.ErrValidation
-	}
 	if c.NewPassword != c.ConfirmPassword {
 		return fmt.Errorf("passwords do not match")
 	}
-	return nil
+
+	return validateStruct(c)
 }
 
 // ErrorResponse represents an error response
@@ -135,4 +111,11 @@ type ErrorResponse struct {
 // SuccessResponse represents a success response
 type SuccessResponse struct {
 	Message string `json:"message"`
+}
+
+func validateStruct(s any) error {
+	if err := validate.Struct(s); err != nil {
+		return domain.ErrValidation
+	}
+	return nil
 }

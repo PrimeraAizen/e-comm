@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,13 +12,15 @@ import (
 	"github.com/PrimeraAizen/e-comm/config"
 	"github.com/PrimeraAizen/e-comm/internal/domain"
 	"github.com/PrimeraAizen/e-comm/internal/repository"
+	"github.com/PrimeraAizen/e-comm/pkg/logger"
 )
 
 type AuthService interface {
-	Register(ctx context.Context, req *domain.User) (*domain.Token, error)
-	Login(ctx context.Context, req *domain.User) (*domain.Token, error)
+	Register(ctx context.Context, email, password string) (*domain.Token, error)
+	Login(ctx context.Context, email, password string) (*domain.Token, error)
 	ValidateToken(tokenString string) (*domain.TokenClaims, error)
 	RefreshToken(ctx context.Context, refreshToken string) (*domain.Token, error)
+	ChangePassword(ctx context.Context, userID string, currentPassword, newPassword string) error
 }
 
 type authService struct {
@@ -25,30 +28,31 @@ type authService struct {
 	jwtSecret            string
 	accessTokenDuration  time.Duration
 	refreshTokenDuration time.Duration
+	logger               *logger.Logger
 }
 
-func NewAuthService(userRepo repository.UserRepository, cfg *config.Config) (AuthService, error) {
-	accessDuration, err := time.ParseDuration(cfg.JWT.AccessTokenDuration)
+func NewAuthService(userRepo repository.UserRepository, log *logger.Logger, cfg *config.JWT) (AuthService, error) {
+	accessDuration, err := time.ParseDuration(cfg.AccessTokenDuration)
 	if err != nil {
 		return nil, fmt.Errorf("parse access token duration: %w", err)
 	}
 
-	refreshDuration, err := time.ParseDuration(cfg.JWT.RefreshTokenDuration)
+	refreshDuration, err := time.ParseDuration(cfg.RefreshTokenDuration)
 	if err != nil {
 		return nil, fmt.Errorf("parse refresh token duration: %w", err)
 	}
 
 	return &authService{
 		userRepo:             userRepo,
-		jwtSecret:            cfg.JWT.Secret,
+		jwtSecret:            cfg.Secret,
+		logger:               log,
 		accessTokenDuration:  accessDuration,
 		refreshTokenDuration: refreshDuration,
 	}, nil
 }
 
-func (s *authService) Register(ctx context.Context, user *domain.User) (*domain.Token, error) {
-	// Check if user already exists
-	existingUser, err := s.userRepo.GetByEmail(ctx, user.Email)
+func (s *authService) Register(ctx context.Context, email, password string) (*domain.Token, error) {
+	existingUser, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil && err != domain.ErrNotFound {
 		return nil, fmt.Errorf("check existing user: %w", err)
 	}
@@ -56,36 +60,40 @@ func (s *authService) Register(ctx context.Context, user *domain.User) (*domain.
 		return nil, domain.ErrAlreadyExists
 	}
 
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+
+	user := &domain.User{
+		Email:        email,
+		PasswordHash: string(hashedPassword),
+	}
+
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
-	// Generate tokens
 	return s.generateAuthTokens(user)
 }
 
-func (s *authService) Login(ctx context.Context, user *domain.User) (*domain.Token, error) {
-	// Get user by email
-	dbUser, err := s.userRepo.GetByEmail(ctx, user.Email)
+func (s *authService) Login(ctx context.Context, email, password string) (*domain.Token, error) {
+	dbUser, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
-		if err == domain.ErrNotFound {
+		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.ErrInvalidCredentials
 		}
 		return nil, fmt.Errorf("get user by email: %w", err)
 	}
 
-	// Check password
-	if err := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(user.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(dbUser.PasswordHash), []byte(password)); err != nil {
 		return nil, domain.ErrInvalidCredentials
 	}
 
-	// Update last login
 	if err := s.userRepo.UpdateLastLogin(ctx, dbUser.ID); err != nil {
-		// Log error but don't fail the login
-		fmt.Printf("failed to update last login: %v\n", err)
+		s.logger.WithComponent("auth").WithError(err).Error("failed to update last login")
 	}
 
-	// Generate tokens
 	return s.generateAuthTokens(dbUser)
 }
 
@@ -98,7 +106,7 @@ func (s *authService) ValidateToken(tokenString string) (*domain.TokenClaims, er
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("parse token: %w", err)
+		return nil, fmt.Errorf("%w: %v", domain.ErrInvalidToken, err)
 	}
 
 	if !token.Valid {
@@ -135,7 +143,7 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*d
 
 	user, err := s.userRepo.GetByID(ctx, claims.UserID)
 	if err != nil {
-		if err == domain.ErrNotFound {
+		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.ErrInvalidToken
 		}
 		return nil, fmt.Errorf("get user: %w", err)
@@ -157,9 +165,6 @@ func (s *authService) generateAuthTokens(user *domain.User) (*domain.Token, erro
 	if err != nil {
 		return nil, fmt.Errorf("generate refresh token: %w", err)
 	}
-
-	// Remove password hash from response
-	user.Password = ""
 
 	return &domain.Token{
 		AccessToken:  accessToken,
@@ -184,4 +189,25 @@ func (s *authService) generateToken(user *domain.User, duration time.Duration) (
 	}
 
 	return tokenString, nil
+}
+
+func (s *authService) ChangePassword(ctx context.Context, userID string, currentPassword, newPassword string) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user by id: %w", err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+		return domain.ErrInvalidCredentials
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	if err := s.userRepo.UpdatePasswordHash(ctx, user.ID, string(hashedPassword)); err != nil {
+		return fmt.Errorf("update user: %w", err)
+	}
+	return nil
 }

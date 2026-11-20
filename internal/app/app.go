@@ -29,7 +29,7 @@ func StartWebServer(ctx context.Context, cfg *config.Config, appLogger *logger.L
 		appLogger.WithComponent("database").Info("DB connection closed")
 	}()
 
-	appLogger.WithComponent("database").Info("MongoDB connection established")
+	appLogger.WithComponent("database").Info("Database connection established")
 
 	// Initialize repositories
 	appLogger.WithComponent("repository").Info("Initializing repositories")

@@ -38,3 +38,6 @@ coverage.out
 
 # Go modules cache (do NOT ignore go.sum)
 # go.sum should be committed
+
+.claude
+

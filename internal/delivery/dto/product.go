@@ -7,7 +7,7 @@ import (
 type CreateProductRequest struct {
 	Name        string  `json:"name" binding:"required"`
 	Description string  `json:"description"`
-	CategoryID  *int    `json:"category_id"`
+	CategoryID  *string `json:"category_id"`
 	Price       float64 `json:"price" binding:"required,min=0"`
 	Stock       int     `json:"stock" binding:"min=0"`
 	ImageURL    string  `json:"image_url"`
@@ -16,7 +16,7 @@ type CreateProductRequest struct {
 type UpdateProductRequest struct {
 	Name        *string  `json:"name"`
 	Description *string  `json:"description"`
-	CategoryID  *int     `json:"category_id"`
+	CategoryID  *string  `json:"category_id"`
 	Price       *float64 `json:"price"`
 	Stock       *int     `json:"stock"`
 	ImageURL    *string  `json:"image_url"`
@@ -31,15 +31,15 @@ type ProductListResponse struct {
 }
 
 type CreateCategoryRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
-	ParentID    *int   `json:"parent_id"`
+	Name        string  `json:"name" binding:"required"`
+	Description string  `json:"description"`
+	ParentID    *string `json:"parent_id"`
 }
 
 type UpdateCategoryRequest struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
-	ParentID    *int    `json:"parent_id"`
+	ParentID    *string `json:"parent_id"`
 }
 
 type PurchaseProductRequest struct {

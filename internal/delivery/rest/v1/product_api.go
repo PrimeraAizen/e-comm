@@ -68,12 +68,7 @@ func (h *Handler) ListProducts(c *gin.Context) {
 	}
 
 	// Category filter
-	if categoryIDStr := c.Query("category_id"); categoryIDStr != "" {
-		categoryID, err := strconv.Atoi(categoryIDStr)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid category_id"})
-			return
-		}
+	if categoryID := c.Query("category_id"); categoryID != "" {
 		filter.CategoryID = &categoryID
 	}
 
@@ -124,12 +119,7 @@ func (h *Handler) ListProducts(c *gin.Context) {
 // @Failure 404 {object} dto.ErrorResponse
 // @Router /products/{id} [get]
 func (h *Handler) GetProduct(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid product id"})
-		return
-	}
+	id := c.Param("id")
 
 	product, err := h.services.ProductService.GetProductWithCategory(c.Request.Context(), id)
 	if err != nil {
@@ -200,12 +190,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /products/{id} [put]
 func (h *Handler) UpdateProduct(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid product id"})
-		return
-	}
+	id := c.Param("id")
 
 	var req dto.UpdateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -276,12 +261,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /products/{id} [delete]
 func (h *Handler) DeleteProduct(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid product id"})
-		return
-	}
+	id := c.Param("id")
 
 	// TODO: Check if user has admin role
 
@@ -311,12 +291,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /products/{id}/statistics [get]
 func (h *Handler) GetProductStatistics(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid product id"})
-		return
-	}
+	id := c.Param("id")
 
 	stats, err := h.services.ProductService.GetProductStatistics(c.Request.Context(), id)
 	if err != nil {
@@ -338,30 +313,20 @@ func (h *Handler) GetProductStatistics(c *gin.Context) {
 // @Tags products
 // @Accept json
 // @Produce json
-// @Param id path int true "Product ID"
+// @Param id path string true "Product ID"
 // @Security BearerAuth
 // @Success 200 {object} dto.SuccessResponse
 // @Router /products/{id}/view [post]
 func (h *Handler) RecordProductView(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
+	userID := userIDVal.(string)
 
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
-
-	idStr := c.Param("id")
-	productID, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid product id"})
-		return
-	}
+	productID := c.Param("id")
 
 	if err := h.services.InteractionService.RecordProductView(c.Request.Context(), userID, productID); err != nil {
 		h.logger.WithComponent("interaction").WithError(err).Error("Failed to record view")
@@ -378,30 +343,20 @@ func (h *Handler) RecordProductView(c *gin.Context) {
 // @Tags products
 // @Accept json
 // @Produce json
-// @Param id path int true "Product ID"
+// @Param id path string true "Product ID"
 // @Security BearerAuth
 // @Success 200 {object} dto.SuccessResponse
 // @Router /products/{id}/like [post]
 func (h *Handler) LikeProduct(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
+	userID := userIDVal.(string)
 
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
-
-	idStr := c.Param("id")
-	productID, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid product id"})
-		return
-	}
+	productID := c.Param("id")
 
 	if err := h.services.InteractionService.LikeProduct(c.Request.Context(), userID, productID); err != nil {
 		h.logger.WithComponent("interaction").WithError(err).Error("Failed to like product")
@@ -418,30 +373,20 @@ func (h *Handler) LikeProduct(c *gin.Context) {
 // @Tags products
 // @Accept json
 // @Produce json
-// @Param id path int true "Product ID"
+// @Param id path string true "Product ID"
 // @Security BearerAuth
 // @Success 200 {object} dto.SuccessResponse
 // @Router /products/{id}/like [delete]
 func (h *Handler) UnlikeProduct(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
+	userID := userIDVal.(string)
 
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
-
-	idStr := c.Param("id")
-	productID, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid product id"})
-		return
-	}
+	productID := c.Param("id")
 
 	if err := h.services.InteractionService.UnlikeProduct(c.Request.Context(), userID, productID); err != nil {
 		h.logger.WithComponent("interaction").WithError(err).Error("Failed to unlike product")
@@ -458,30 +403,20 @@ func (h *Handler) UnlikeProduct(c *gin.Context) {
 // @Tags products
 // @Accept json
 // @Produce json
-// @Param id path int true "Product ID"
+// @Param id path string true "Product ID"
 // @Security BearerAuth
 // @Success 200 {object} map[string]bool
 // @Router /products/{id}/liked [get]
 func (h *Handler) CheckProductLiked(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
+	userID := userIDVal.(string)
 
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
-
-	idStr := c.Param("id")
-	productID, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid product id"})
-		return
-	}
+	productID := c.Param("id")
 
 	liked, err := h.services.InteractionService.IsProductLiked(c.Request.Context(), userID, productID)
 	if err != nil {
@@ -499,31 +434,21 @@ func (h *Handler) CheckProductLiked(c *gin.Context) {
 // @Tags products
 // @Accept json
 // @Produce json
-// @Param id path int true "Product ID"
+// @Param id path string true "Product ID"
 // @Param purchase body dto.PurchaseProductRequest true "Purchase details"
 // @Security BearerAuth
 // @Success 200 {object} dto.SuccessResponse
 // @Router /products/{id}/purchase [post]
 func (h *Handler) PurchaseProduct(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
+	userID := userIDVal.(string)
 
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
-
-	idStr := c.Param("id")
-	productID, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid product id"})
-		return
-	}
+	productID := c.Param("id")
 
 	var req dto.PurchaseProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -555,30 +480,20 @@ func (h *Handler) PurchaseProduct(c *gin.Context) {
 // @Tags products
 // @Accept json
 // @Produce json
-// @Param id path int true "Product ID"
+// @Param id path string true "Product ID"
 // @Security BearerAuth
 // @Success 200 {object} map[string]bool
 // @Router /products/{id}/purchased [get]
 func (h *Handler) CheckProductPurchased(c *gin.Context) {
 	// Get user ID from context
-	userIDStr, exists := c.Get("userId")
+	userIDVal, exists := c.Get("userId")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "user not authenticated"})
 		return
 	}
+	userID := userIDVal.(string)
 
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user id"})
-		return
-	}
-
-	idStr := c.Param("id")
-	productID, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid product id"})
-		return
-	}
+	productID := c.Param("id")
 
 	purchased, err := h.services.InteractionService.HasPurchasedProduct(c.Request.Context(), userID, productID)
 	if err != nil {

@@ -3,19 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
-
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/PrimeraAizen/e-comm/internal/domain"
 	"github.com/PrimeraAizen/e-comm/internal/repository"
 )
 
 type UserService interface {
-	GetProfile(ctx context.Context, userID int) (*domain.User, *domain.Profile, error)
-	UpdateProfile(ctx context.Context, userID int, profileData *domain.Profile) (*domain.Profile, error)
-	ChangePassword(ctx context.Context, userID int, currentPassword, newPassword string) error
-	DeleteAccount(ctx context.Context, userID int) error
+	GetProfile(ctx context.Context, userID string) (*domain.User, *domain.Profile, error)
+	UpdateProfile(ctx context.Context, userID string, profileData *domain.Profile) (*domain.Profile, error)
+	DeleteAccount(ctx context.Context, userID string) error
 }
 
 type userService struct {
@@ -31,7 +27,7 @@ func NewUserService(userRepo repository.UserRepository, profileRepo repository.P
 }
 
 // GetProfile retrieves user and profile by ID
-func (s *userService) GetProfile(ctx context.Context, userID int) (*domain.User, *domain.Profile, error) {
+func (s *userService) GetProfile(ctx context.Context, userID string) (*domain.User, *domain.Profile, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get user by id: %w", err)
@@ -50,7 +46,7 @@ func (s *userService) GetProfile(ctx context.Context, userID int) (*domain.User,
 }
 
 // UpdateProfile updates user profile information (partial update supported)
-func (s *userService) UpdateProfile(ctx context.Context, userID int, profileData *domain.Profile) (*domain.Profile, error) {
+func (s *userService) UpdateProfile(ctx context.Context, userID string, profileData *domain.Profile) (*domain.Profile, error) {
 	// Get existing profile
 	profile, err := s.profileRepo.GetByUserID(ctx, userID)
 	if err != nil {
@@ -104,47 +100,14 @@ func (s *userService) UpdateProfile(ctx context.Context, userID int, profileData
 	return profile, nil
 }
 
-// ChangePassword changes user password
-func (s *userService) ChangePassword(ctx context.Context, userID int, currentPassword, newPassword string) error {
-	// Get user
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("get user by id: %w", err)
-	}
-
-	// Verify current password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(currentPassword)); err != nil {
-		return fmt.Errorf("invalid current password")
-	}
-
-	// Hash new password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("hash password: %w", err)
-	}
-
-	// Update password
-	user.Password = string(hashedPassword)
-	user.UpdatedAt = time.Now()
-
-	if err := s.userRepo.Update(ctx, user); err != nil {
-		return fmt.Errorf("update user: %w", err)
-	}
-
-	return nil
-}
-
 // DeleteAccount marks user account as inactive (soft delete)
-func (s *userService) DeleteAccount(ctx context.Context, userID int) error {
+func (s *userService) DeleteAccount(ctx context.Context, userID string) error {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("get user by id: %w", err)
 	}
 
-	user.Status = "deleted"
-	user.UpdatedAt = time.Now()
-
-	if err := s.userRepo.Update(ctx, user); err != nil {
+	if err := s.userRepo.UpdateStatus(ctx, user.ID, domain.StatusUserInactive); err != nil {
 		return fmt.Errorf("update user: %w", err)
 	}
 

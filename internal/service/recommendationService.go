@@ -12,8 +12,8 @@ import (
 )
 
 type RecommendationService interface {
-	GetRecommendations(ctx context.Context, userID int, limit int) (*domain.RecommendationResponse, error)
-	GetSimilarUsers(ctx context.Context, userID int, limit int) ([]domain.UserSimilarity, error)
+	GetRecommendations(ctx context.Context, userID string, limit int) (*domain.RecommendationResponse, error)
+	GetSimilarUsers(ctx context.Context, userID string, limit int) ([]domain.UserSimilarity, error)
 }
 
 type recommendationService struct {
@@ -32,7 +32,7 @@ func NewRecommendationService(
 }
 
 // GetRecommendations generates product recommendations using collaborative filtering
-func (s *recommendationService) GetRecommendations(ctx context.Context, userID int, limit int) (*domain.RecommendationResponse, error) {
+func (s *recommendationService) GetRecommendations(ctx context.Context, userID string, limit int) (*domain.RecommendationResponse, error) {
 	if limit <= 0 || limit > 50 {
 		limit = 10 // Default limit
 	}
@@ -54,9 +54,9 @@ func (s *recommendationService) GetRecommendations(ctx context.Context, userID i
 	}
 
 	// Create sets for current user's interactions
-	userLikedProducts := make(map[int]bool)
-	userViewedProducts := make(map[int]bool)
-	userPurchasedProducts := make(map[int]bool)
+	userLikedProducts := make(map[string]bool)
+	userViewedProducts := make(map[string]bool)
+	userPurchasedProducts := make(map[string]bool)
 
 	for _, like := range allLikes {
 		if like.UserID == userID {
@@ -91,8 +91,8 @@ func (s *recommendationService) GetRecommendations(ctx context.Context, userID i
 	}
 
 	// Aggregate recommendations from similar users
-	productScores := make(map[int]float64)
-	productDetails := make(map[int]*domain.Product)
+	productScores := make(map[string]float64)
+	productDetails := make(map[string]*domain.Product)
 
 	// Score from similar users' purchases (strongest signal - weight 3.0)
 	for _, simUser := range similarUsers {
@@ -154,7 +154,7 @@ func (s *recommendationService) GetRecommendations(ctx context.Context, userID i
 			continue
 		}
 
-		categoryID := 0
+		categoryID := ""
 		if product.CategoryID != nil {
 			categoryID = *product.CategoryID
 		}
@@ -193,7 +193,7 @@ func (s *recommendationService) GetRecommendations(ctx context.Context, userID i
 }
 
 // GetSimilarUsers finds users with similar interaction patterns
-func (s *recommendationService) GetSimilarUsers(ctx context.Context, userID int, limit int) ([]domain.UserSimilarity, error) {
+func (s *recommendationService) GetSimilarUsers(ctx context.Context, userID string, limit int) ([]domain.UserSimilarity, error) {
 	// Get all likes, views, and purchases
 	allLikes, err := s.interactionRepo.GetAllUserLikes(ctx)
 	if err != nil {
@@ -211,19 +211,19 @@ func (s *recommendationService) GetSimilarUsers(ctx context.Context, userID int,
 	}
 
 	// Create sets for current user and group by user for others
-	userLikedProducts := make(map[int]bool)
-	userViewedProducts := make(map[int]bool)
-	userPurchasedProducts := make(map[int]bool)
-	otherUsersLikes := make(map[int]map[int]bool)
-	otherUsersViews := make(map[int]map[int]bool)
-	otherUsersPurchases := make(map[int]map[int]bool)
+	userLikedProducts := make(map[string]bool)
+	userViewedProducts := make(map[string]bool)
+	userPurchasedProducts := make(map[string]bool)
+	otherUsersLikes := make(map[string]map[string]bool)
+	otherUsersViews := make(map[string]map[string]bool)
+	otherUsersPurchases := make(map[string]map[string]bool)
 
 	for _, like := range allLikes {
 		if like.UserID == userID {
 			userLikedProducts[like.ProductID] = true
 		} else {
 			if otherUsersLikes[like.UserID] == nil {
-				otherUsersLikes[like.UserID] = make(map[int]bool)
+				otherUsersLikes[like.UserID] = make(map[string]bool)
 			}
 			otherUsersLikes[like.UserID][like.ProductID] = true
 		}
@@ -234,7 +234,7 @@ func (s *recommendationService) GetSimilarUsers(ctx context.Context, userID int,
 			userViewedProducts[view.ProductID] = true
 		} else {
 			if otherUsersViews[view.UserID] == nil {
-				otherUsersViews[view.UserID] = make(map[int]bool)
+				otherUsersViews[view.UserID] = make(map[string]bool)
 			}
 			otherUsersViews[view.UserID][view.ProductID] = true
 		}
@@ -245,14 +245,14 @@ func (s *recommendationService) GetSimilarUsers(ctx context.Context, userID int,
 			userPurchasedProducts[purchase.ProductID] = true
 		} else {
 			if otherUsersPurchases[purchase.UserID] == nil {
-				otherUsersPurchases[purchase.UserID] = make(map[int]bool)
+				otherUsersPurchases[purchase.UserID] = make(map[string]bool)
 			}
 			otherUsersPurchases[purchase.UserID][purchase.ProductID] = true
 		}
 	}
 
 	// Collect all unique user IDs
-	allUserIDs := make(map[int]bool)
+	allUserIDs := make(map[string]bool)
 	for userID := range otherUsersLikes {
 		allUserIDs[userID] = true
 	}
@@ -359,14 +359,14 @@ func (s *recommendationService) getPopularProducts(ctx context.Context, limit in
 	}
 
 	// Count likes per product
-	likeCounts := make(map[int]int)
+	likeCounts := make(map[string]int)
 	for _, like := range allLikes {
 		likeCounts[like.ProductID]++
 	}
 
 	// Create sorted list
 	type productCount struct {
-		productID int
+		productID string
 		count     int
 	}
 
@@ -399,7 +399,7 @@ func (s *recommendationService) getPopularProducts(ctx context.Context, limit in
 		// Normalize score to 0-1 range
 		score := float64(pc.count) / float64(maxCount)
 
-		categoryID := 0
+		categoryID := ""
 		if product.CategoryID != nil {
 			categoryID = *product.CategoryID
 		}
@@ -415,7 +415,7 @@ func (s *recommendationService) getPopularProducts(ctx context.Context, limit in
 	}
 
 	return &domain.RecommendationResponse{
-		UserID:          0,
+		UserID:          "",
 		Recommendations: recommendations,
 		Algorithm:       "popularity_based",
 		GeneratedAt:     time.Now().Format(time.RFC3339),
@@ -423,7 +423,7 @@ func (s *recommendationService) getPopularProducts(ctx context.Context, limit in
 }
 
 // Helper function to calculate cosine similarity (alternative to Jaccard)
-func cosineSimilarity(a, b map[int]bool) float64 {
+func cosineSimilarity(a, b map[string]bool) float64 {
 	if len(a) == 0 || len(b) == 0 {
 		return 0.0
 	}

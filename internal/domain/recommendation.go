@@ -2,9 +2,9 @@ package domain
 
 // ProductRecommendation represents a recommended product with a score
 type ProductRecommendation struct {
-	ProductID   int     `json:"product_id" bson:"product_id"`
+	ProductID   string  `json:"product_id" bson:"product_id"`
 	ProductName string  `json:"product_name" bson:"product_name"`
-	CategoryID  int     `json:"category_id" bson:"category_id"`
+	CategoryID  string  `json:"category_id" bson:"category_id"`
 	Price       float64 `json:"price" bson:"price"`
 	Score       float64 `json:"score" bson:"score"`   // Similarity/relevance score
 	Reason      string  `json:"reason" bson:"reason"` // Why recommended
@@ -12,7 +12,7 @@ type ProductRecommendation struct {
 
 // RecommendationResponse is the API response structure
 type RecommendationResponse struct {
-	UserID          int                     `json:"user_id"`
+	UserID          string                  `json:"user_id"`
 	Recommendations []ProductRecommendation `json:"recommendations"`
 	Algorithm       string                  `json:"algorithm"` // e.g., "collaborative_filtering"
 	GeneratedAt     string                  `json:"generated_at"`
@@ -20,7 +20,7 @@ type RecommendationResponse struct {
 
 // UserSimilarity represents similarity between two users
 type UserSimilarity struct {
-	UserID          int     `json:"user_id"`
+	UserID          string  `json:"user_id"`
 	SimilarityScore float64 `json:"similarity_score"`
 	CommonLikes     int     `json:"common_likes"`
 	CommonViews     int     `json:"common_views"`

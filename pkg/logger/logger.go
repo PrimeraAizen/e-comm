@@ -68,7 +68,8 @@ func New(config *Config) (*Logger, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open log file: %w", err)
 		}
-		output = file
+		// Write to both stdout and file so console output is preserved
+		output = io.MultiWriter(os.Stdout, file)
 	default:
 		output = os.Stdout
 	}

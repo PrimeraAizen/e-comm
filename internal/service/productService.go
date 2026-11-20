@@ -11,10 +11,10 @@ import (
 type ProductService interface {
 	// Product operations
 	CreateProduct(ctx context.Context, product *domain.Product) error
-	GetProduct(ctx context.Context, id int) (*domain.Product, error)
-	GetProductWithCategory(ctx context.Context, id int) (*domain.ProductWithCategory, error)
+	GetProduct(ctx context.Context, id string) (*domain.Product, error)
+	GetProductWithCategory(ctx context.Context, id string) (*domain.ProductWithCategory, error)
 	UpdateProduct(ctx context.Context, product *domain.Product) error
-	DeleteProduct(ctx context.Context, id int) error
+	DeleteProduct(ctx context.Context, id string) error
 
 	// Product listing and search
 	ListProducts(ctx context.Context, filter domain.ProductFilter) ([]*domain.Product, int64, error)
@@ -23,19 +23,19 @@ type ProductService interface {
 
 	// Category operations
 	CreateCategory(ctx context.Context, category *domain.Category) error
-	GetCategory(ctx context.Context, id int) (*domain.Category, error)
+	GetCategory(ctx context.Context, id string) (*domain.Category, error)
 	GetCategoryByName(ctx context.Context, name string) (*domain.Category, error)
 	ListCategories(ctx context.Context) ([]*domain.Category, error)
 	UpdateCategory(ctx context.Context, category *domain.Category) error
-	DeleteCategory(ctx context.Context, id int) error
+	DeleteCategory(ctx context.Context, id string) error
 
 	// Product statistics
-	GetProductStatistics(ctx context.Context, productID int) (*domain.ProductStatistics, error)
+	GetProductStatistics(ctx context.Context, productID string) (*domain.ProductStatistics, error)
 	RefreshStatistics(ctx context.Context) error
 
 	// Stock management
-	UpdateStock(ctx context.Context, productID int, quantity int) error
-	CheckStock(ctx context.Context, productID int, quantity int) (bool, error)
+	UpdateStock(ctx context.Context, productID string, quantity int) error
+	CheckStock(ctx context.Context, productID string, quantity int) (bool, error)
 }
 
 type productService struct {
@@ -76,12 +76,12 @@ func (s *productService) CreateProduct(ctx context.Context, product *domain.Prod
 }
 
 // GetProduct retrieves a product by ID
-func (s *productService) GetProduct(ctx context.Context, id int) (*domain.Product, error) {
+func (s *productService) GetProduct(ctx context.Context, id string) (*domain.Product, error) {
 	return s.productRepo.GetByID(ctx, id)
 }
 
 // GetProductWithCategory retrieves a product with category information
-func (s *productService) GetProductWithCategory(ctx context.Context, id int) (*domain.ProductWithCategory, error) {
+func (s *productService) GetProductWithCategory(ctx context.Context, id string) (*domain.ProductWithCategory, error) {
 	return s.productRepo.GetByIDWithCategory(ctx, id)
 }
 
@@ -113,7 +113,7 @@ func (s *productService) UpdateProduct(ctx context.Context, product *domain.Prod
 }
 
 // DeleteProduct deletes a product
-func (s *productService) DeleteProduct(ctx context.Context, id int) error {
+func (s *productService) DeleteProduct(ctx context.Context, id string) error {
 	// Check if product exists
 	_, err := s.productRepo.GetByID(ctx, id)
 	if err != nil {
@@ -208,7 +208,7 @@ func (s *productService) CreateCategory(ctx context.Context, category *domain.Ca
 }
 
 // GetCategory retrieves a category by ID
-func (s *productService) GetCategory(ctx context.Context, id int) (*domain.Category, error) {
+func (s *productService) GetCategory(ctx context.Context, id string) (*domain.Category, error) {
 	return s.productRepo.GetCategoryByID(ctx, id)
 }
 
@@ -255,7 +255,7 @@ func (s *productService) UpdateCategory(ctx context.Context, category *domain.Ca
 }
 
 // DeleteCategory deletes a category
-func (s *productService) DeleteCategory(ctx context.Context, id int) error {
+func (s *productService) DeleteCategory(ctx context.Context, id string) error {
 	// Check if category exists
 	_, err := s.productRepo.GetCategoryByID(ctx, id)
 	if err != nil {
@@ -269,7 +269,7 @@ func (s *productService) DeleteCategory(ctx context.Context, id int) error {
 }
 
 // GetProductStatistics retrieves statistics for a product
-func (s *productService) GetProductStatistics(ctx context.Context, productID int) (*domain.ProductStatistics, error) {
+func (s *productService) GetProductStatistics(ctx context.Context, productID string) (*domain.ProductStatistics, error) {
 	// Check if product exists
 	_, err := s.productRepo.GetByID(ctx, productID)
 	if err != nil {
@@ -285,7 +285,7 @@ func (s *productService) RefreshStatistics(ctx context.Context) error {
 }
 
 // UpdateStock updates product stock
-func (s *productService) UpdateStock(ctx context.Context, productID int, quantity int) error {
+func (s *productService) UpdateStock(ctx context.Context, productID string, quantity int) error {
 	product, err := s.productRepo.GetByID(ctx, productID)
 	if err != nil {
 		return err
@@ -301,7 +301,7 @@ func (s *productService) UpdateStock(ctx context.Context, productID int, quantit
 }
 
 // CheckStock checks if sufficient stock is available
-func (s *productService) CheckStock(ctx context.Context, productID int, quantity int) (bool, error) {
+func (s *productService) CheckStock(ctx context.Context, productID string, quantity int) (bool, error) {
 	product, err := s.productRepo.GetByID(ctx, productID)
 	if err != nil {
 		return false, err

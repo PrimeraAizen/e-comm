@@ -10,22 +10,22 @@ import (
 
 type InteractionService interface {
 	// View interactions
-	RecordProductView(ctx context.Context, userID, productID int) error
-	GetUserViewHistory(ctx context.Context, userID int, limit int) ([]domain.ProductInteraction, error)
+	RecordProductView(ctx context.Context, userID, productID string) error
+	GetUserViewHistory(ctx context.Context, userID string, limit int) ([]domain.ProductInteraction, error)
 
 	// Like interactions
-	LikeProduct(ctx context.Context, userID, productID int) error
-	UnlikeProduct(ctx context.Context, userID, productID int) error
-	GetUserLikedProducts(ctx context.Context, userID int, limit int) ([]domain.ProductInteraction, error)
-	IsProductLiked(ctx context.Context, userID, productID int) (bool, error)
+	LikeProduct(ctx context.Context, userID, productID string) error
+	UnlikeProduct(ctx context.Context, userID, productID string) error
+	GetUserLikedProducts(ctx context.Context, userID string, limit int) ([]domain.ProductInteraction, error)
+	IsProductLiked(ctx context.Context, userID, productID string) (bool, error)
 
 	// Purchase interactions
-	PurchaseProduct(ctx context.Context, userID, productID int, quantity int) error
-	GetUserPurchaseHistory(ctx context.Context, userID int, limit int) ([]domain.ProductInteraction, error)
-	HasPurchasedProduct(ctx context.Context, userID, productID int) (bool, error)
+	PurchaseProduct(ctx context.Context, userID, productID string, quantity int) error
+	GetUserPurchaseHistory(ctx context.Context, userID string, limit int) ([]domain.ProductInteraction, error)
+	HasPurchasedProduct(ctx context.Context, userID, productID string) (bool, error)
 
 	// Summary
-	GetUserInteractionSummary(ctx context.Context, userID int) (*domain.UserInteractionSummary, error)
+	GetUserInteractionSummary(ctx context.Context, userID string) (*domain.UserInteractionSummary, error)
 }
 
 type interactionService struct {
@@ -44,7 +44,7 @@ func NewInteractionService(
 }
 
 // RecordProductView records a user viewing a product
-func (s *interactionService) RecordProductView(ctx context.Context, userID, productID int) error {
+func (s *interactionService) RecordProductView(ctx context.Context, userID, productID string) error {
 	// Verify product exists
 	_, err := s.productRepo.GetByID(ctx, productID)
 	if err != nil {
@@ -63,7 +63,7 @@ func (s *interactionService) RecordProductView(ctx context.Context, userID, prod
 }
 
 // GetUserViewHistory retrieves the user's view history
-func (s *interactionService) GetUserViewHistory(ctx context.Context, userID int, limit int) ([]domain.ProductInteraction, error) {
+func (s *interactionService) GetUserViewHistory(ctx context.Context, userID string, limit int) ([]domain.ProductInteraction, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50 // Default limit
 	}
@@ -77,7 +77,7 @@ func (s *interactionService) GetUserViewHistory(ctx context.Context, userID int,
 }
 
 // LikeProduct records a user liking a product
-func (s *interactionService) LikeProduct(ctx context.Context, userID, productID int) error {
+func (s *interactionService) LikeProduct(ctx context.Context, userID, productID string) error {
 	// Verify product exists
 	_, err := s.productRepo.GetByID(ctx, productID)
 	if err != nil {
@@ -96,7 +96,7 @@ func (s *interactionService) LikeProduct(ctx context.Context, userID, productID 
 }
 
 // UnlikeProduct removes a user's like from a product
-func (s *interactionService) UnlikeProduct(ctx context.Context, userID, productID int) error {
+func (s *interactionService) UnlikeProduct(ctx context.Context, userID, productID string) error {
 	if err := s.interactionRepo.RemoveLike(ctx, userID, productID); err != nil {
 		if err == domain.ErrNotFound {
 			return fmt.Errorf("like not found")
@@ -108,7 +108,7 @@ func (s *interactionService) UnlikeProduct(ctx context.Context, userID, productI
 }
 
 // GetUserLikedProducts retrieves products the user has liked
-func (s *interactionService) GetUserLikedProducts(ctx context.Context, userID int, limit int) ([]domain.ProductInteraction, error) {
+func (s *interactionService) GetUserLikedProducts(ctx context.Context, userID string, limit int) ([]domain.ProductInteraction, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50 // Default limit
 	}
@@ -122,7 +122,7 @@ func (s *interactionService) GetUserLikedProducts(ctx context.Context, userID in
 }
 
 // IsProductLiked checks if the user has liked a product
-func (s *interactionService) IsProductLiked(ctx context.Context, userID, productID int) (bool, error) {
+func (s *interactionService) IsProductLiked(ctx context.Context, userID, productID string) (bool, error) {
 	liked, err := s.interactionRepo.HasLiked(ctx, userID, productID)
 	if err != nil {
 		return false, fmt.Errorf("check if liked: %w", err)
@@ -132,7 +132,7 @@ func (s *interactionService) IsProductLiked(ctx context.Context, userID, product
 }
 
 // GetUserInteractionSummary gets a summary of all user interactions
-func (s *interactionService) GetUserInteractionSummary(ctx context.Context, userID int) (*domain.UserInteractionSummary, error) {
+func (s *interactionService) GetUserInteractionSummary(ctx context.Context, userID string) (*domain.UserInteractionSummary, error) {
 	summary, err := s.interactionRepo.GetUserInteractionSummary(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get interaction summary: %w", err)
@@ -142,7 +142,7 @@ func (s *interactionService) GetUserInteractionSummary(ctx context.Context, user
 }
 
 // PurchaseProduct records a user purchasing a product
-func (s *interactionService) PurchaseProduct(ctx context.Context, userID, productID int, quantity int) error {
+func (s *interactionService) PurchaseProduct(ctx context.Context, userID, productID string, quantity int) error {
 	if quantity <= 0 {
 		return fmt.Errorf("quantity must be greater than 0")
 	}
@@ -176,7 +176,7 @@ func (s *interactionService) PurchaseProduct(ctx context.Context, userID, produc
 }
 
 // GetUserPurchaseHistory retrieves the user's purchase history
-func (s *interactionService) GetUserPurchaseHistory(ctx context.Context, userID int, limit int) ([]domain.ProductInteraction, error) {
+func (s *interactionService) GetUserPurchaseHistory(ctx context.Context, userID string, limit int) ([]domain.ProductInteraction, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50 // Default limit
 	}
@@ -190,7 +190,7 @@ func (s *interactionService) GetUserPurchaseHistory(ctx context.Context, userID 
 }
 
 // HasPurchasedProduct checks if the user has purchased a product
-func (s *interactionService) HasPurchasedProduct(ctx context.Context, userID, productID int) (bool, error) {
+func (s *interactionService) HasPurchasedProduct(ctx context.Context, userID, productID string) (bool, error) {
 	purchased, err := s.interactionRepo.HasPurchased(ctx, userID, productID)
 	if err != nil {
 		return false, fmt.Errorf("check if purchased: %w", err)

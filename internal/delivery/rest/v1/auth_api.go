@@ -48,13 +48,7 @@ func (h *Handler) register(c *gin.Context) {
 		return
 	}
 
-	user, err := req.ToDomain()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{})
-		return
-	}
-
-	resp, err := h.services.AuthService.Register(c.Request.Context(), user)
+	resp, err := h.services.AuthService.Register(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		if err == domain.ErrAlreadyExists {
 			c.JSON(http.StatusConflict, dto.ErrorResponse{
@@ -103,7 +97,7 @@ func (h *Handler) login(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.services.AuthService.Login(c.Request.Context(), req.ToDomain())
+	resp, err := h.services.AuthService.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		if err == domain.ErrInvalidCredentials {
 			c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
